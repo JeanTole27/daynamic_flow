@@ -298,14 +298,24 @@ class AppState extends ChangeNotifier {
     ),
   ];
 
+  /// Los IDs mock de una oferta dependen solo del día, así que cada día se
+  /// puede ofrecer una sola vez (si no, habría solicitudes con ID repetido
+  /// que `approveRequest`/`rejectRequest` nunca podrían resolver).
+  static int _offerSwapId(int weekdayIndex) => 90 + weekdayIndex;
+  static int _offerRequestId(int weekdayIndex) => 80 + weekdayIndex;
+
+  bool hasOfferedShift(int weekdayIndex) =>
+      swaps.any((s) => s.id == _offerSwapId(weekdayIndex));
+
   /// CONEXIÓN: reemplazar por ShiftsRepository.offerShift.
   void offerShift(int weekdayIndex) {
+    if (hasOfferedShift(weekdayIndex)) return;
     const meId = 0; // usuario empleado demo (Ana Torres)
     final dayLabel = '${dayLabels[weekdayIndex]} ${weekdayIndex + 1}';
     swaps.insert(
       0,
       SwapOffer(
-        id: 90 + weekdayIndex,
+        id: _offerSwapId(weekdayIndex),
         employeeId: meId,
         dayLabel: dayLabel,
         timeLabel: '09:00–17:00',
@@ -315,7 +325,7 @@ class AppState extends ChangeNotifier {
     requests.insert(
       0,
       ShiftRequest(
-        id: 80 + weekdayIndex,
+        id: _offerRequestId(weekdayIndex),
         kind: RequestKind.swap,
         employeeId: meId,
         dateLabel: dayLabel,
@@ -496,7 +506,7 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------
 
   double get totalHours => employees.fold(0, (a, e) => a + e.hoursWorked);
-  static const String estimatedCostLabel = r'\$2.03M';
+  static const String estimatedCostLabel = r'$2.03M';
   static const String totalHoursLabel = '312h';
   static const double overtimeThresholdHours = 65;
 

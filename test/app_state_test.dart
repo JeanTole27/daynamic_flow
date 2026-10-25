@@ -69,6 +69,29 @@ void main() {
       expect(app.swaps.first.status, SwapStatus.offered);
     });
 
+    test('offerShift ignores a second offer for the same day', () {
+      final app = AppState();
+      final swapsBefore = app.swaps.length;
+      final requestsBefore = app.requests.length;
+
+      app.offerShift(3);
+      app.offerShift(3);
+
+      expect(app.hasOfferedShift(3), isTrue);
+      expect(app.swaps.length, swapsBefore + 1);
+      expect(app.requests.length, requestsBefore + 1);
+
+      // Every pending request must be resolvable by its id.
+      for (final r in List.of(app.pendingRequests)) {
+        app.approveRequest(r.id);
+      }
+      expect(app.pendingRequests, isEmpty);
+    });
+
+    test('estimatedCostLabel has no stray backslash', () {
+      expect(AppState.estimatedCostLabel, r'$2.03M');
+    });
+
     test('claimSwap moves an open swap to pending', () {
       final app = AppState();
       final open = app.swaps.firstWhere((s) => s.status == SwapStatus.open);

@@ -18,11 +18,9 @@ class ClockScreen extends StatefulWidget {
 class _ClockScreenState extends State<ClockScreen> {
   Timer? _ticker;
 
-  @override
-  void initState() {
-    super.initState();
-    _syncTicker();
-  }
+  // No se llama a _syncTicker() desde initState: lee AppScope, y un
+  // InheritedWidget no se puede consultar antes de que initState termine.
+  // build() lo sincroniza en cada reconstrucción.
 
   @override
   void dispose() {

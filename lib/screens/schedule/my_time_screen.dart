@@ -160,7 +160,7 @@ class _MineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = app.strings;
-    final canOffer = on && !isToday;
+    final canOffer = on && !isToday && !app.hasOfferedShift(weekdayIndex);
 
     final Color bg = isToday
         ? AppColors.lime
