@@ -1,0 +1,134 @@
+import 'package:flutter/material.dart';
+
+import '../../state/app_scope.dart';
+import '../../state/app_state.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/avatar.dart';
+import 'chat_screen.dart';
+
+class ChatListScreen extends StatelessWidget {
+  const ChatListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    final t = app.strings;
+
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+          children: [
+            Text(t['chat'], style: AppTextStyles.h1()),
+            const SizedBox(height: 14),
+            for (final thread in AppState.chatThreadMeta) ...[
+              _ThreadRow(threadKey: thread.key, initials: thread.initials, name: thread.name),
+              const SizedBox(height: 6),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThreadRow extends StatelessWidget {
+  const _ThreadRow({
+    required this.threadKey,
+    required this.initials,
+    required this.name,
+  });
+
+  final String threadKey;
+  final String initials;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    final messages = app.threadMessages(threadKey);
+    final last = messages.isNotEmpty ? messages.last.text : '';
+    final unread = threadKey == 'general' ? 3 : (threadKey == 'LP' ? 1 : 0);
+
+    final isGeneral = threadKey == 'general';
+
+    return AppCard(
+      radius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ChatScreen(threadKey: threadKey, title: name)),
+      ),
+      child: Row(
+        children: [
+          isGeneral
+              ? Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.chipBg,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Text(
+                    '#',
+                    style: AppTextStyles.mono(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: AppColors.lime,
+                    ),
+                  ),
+                )
+              : InitialsAvatar(
+                  initials: initials,
+                  paletteIndex: _avatarIndexFor(threadKey),
+                  size: 40,
+                  fontSize: 13,
+                ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: AppTextStyles.sans(size: 14.5, weight: FontWeight.w600)),
+                Text(
+                  last,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.sans(size: 12, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          if (unread > 0)
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.lime,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$unread',
+                style: AppTextStyles.mono(
+                  size: 11,
+                  weight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  int _avatarIndexFor(String key) => switch (key) {
+    'LP' => 1,
+    'MR' => 2,
+    'DS' => 3,
+    _ => 0,
+  };
+}
