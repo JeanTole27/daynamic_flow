@@ -34,7 +34,7 @@ class WeekScreen extends StatelessWidget {
                       SectionLabel(t['week']),
                       const SizedBox(height: 5),
                       Text(
-                        '1 – 7 sept',
+                        app.weekRangeLabel,
                         style: AppTextStyles.sans(
                           size: 24,
                           weight: FontWeight.w700,

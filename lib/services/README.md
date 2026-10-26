@@ -1,22 +1,24 @@
-# Servicios (solo interfaces — sin conectar)
+# Servicios
 
-Esta carpeta **únicamente señala** dónde va cada integración real con
-backend. Ninguna clase aquí hace una llamada de red: todas lanzan
-`UnimplementedError` a propósito. Todo el estado y la lógica de la app
-(`lib/state/app_state.dart`) funciona hoy con datos mock en memoria,
-igual que el prototipo original.
+`AppState` (`lib/state/app_state.dart`) recibe un `Backend` con estas
+interfaces. Sin backend funciona en modo demo con datos en memoria.
 
-Cuando se decida el backend (Firebase, REST propio, etc.), cada
-interfaz de aquí se implementa y se inyecta en `AppState` reemplazando
-el bloque de datos mock correspondiente — el resto de la UI no debería
-necesitar cambios porque ya consume estas formas de datos.
-
-| Archivo | Qué reemplaza |
+| Archivo | Qué hace |
 |---|---|
-| `auth_service.dart` | Login, aceptar invitación, sesión persistente |
-| `team_repository.dart` | CRUD de empleados, invitaciones |
-| `shifts_repository.dart` | Turnos, calendario semanal, solicitudes, cambios de turno |
-| `time_clock_service.dart` | Fichaje con verificación de ubicación del lado del servidor |
-| `chat_service.dart` | Mensajería en tiempo real |
-| `push_notifications_service.dart` | Notificaciones push (FCM/APNs) y preferencias |
-| `reports_service.dart` | Cálculo de horas/costos y export CSV/PDF por correo |
+| `backend.dart` | Agrupa todas las conexiones y el stream de cambios en tiempo real |
+| `auth_service.dart` | Login, aceptar invitación, sesión guardada |
+| `team_repository.dart` | Equipo, sitios, invitaciones, activar/desactivar |
+| `shifts_repository.dart` | Turnos, solicitudes, cambios de turno, disponibilidad |
+| `time_clock_service.dart` | Fichaje (validado en el servidor) y fotos de evidencia |
+| `chat_service.dart` | Hilos, mensajes, chat directo |
+| `notifications_repository.dart` | Buzón de notificaciones y preferencias |
+| `reports_service.dart` | Horas por empleado en un periodo |
+| `device_services.dart` | GPS y cámara del dispositivo |
+| `supabase/supabase_backend.dart` | Implementación con Supabase |
+| `device/` | Implementaciones con `geolocator` e `image_picker` |
+
+Toda la autorización vive en el servidor (RLS y funciones en
+`supabase/migrations`). El código de la app asume que cualquier llamada puede
+ser rechazada y traduce los códigos de error con `AppStrings.error`.
+
+Configuración y despliegue: `supabase/README.md`.

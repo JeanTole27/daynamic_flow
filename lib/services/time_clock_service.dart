@@ -1,36 +1,28 @@
-/// CONEXIÓN PENDIENTE — no implementada a propósito.
-///
-/// Reemplaza `AppState.clockToggle`. El prototipo confía en un flag local
-/// (`gpsInside`); una implementación real necesita:
-///  1. Permiso de ubicación (foreground, y en Android background si se
-///     quiere detectar salida del radio sin abrir la app) vía el paquete
-///     `geolocator` o similar.
-///  2. Enviar la posición al servidor y que **el servidor** valide la
-///     distancia al local — nunca confiar solo en el cliente, o cualquiera
-///     puede falsificar el fichaje con una ubicación simulada.
-///  3. Persistir el fichaje (hora entrada/salida + ubicación) para reportes.
+import 'dart:typed_data';
+
+import '../state/models.dart';
+
+/// Fichaje. El cliente solo envía la lectura del GPS: el servidor
+/// (`clock_in` en `supabase/migrations`) elige el turno, calcula la
+/// distancia al sitio y rechaza el fichaje si está fuera del radio, si la
+/// ubicación es falsa o si la precisión es mala. Así nadie puede fichar con
+/// una ubicación simulada o desde otro sitio modificando la app.
 abstract class TimeClockService {
-  Future<ClockStatus> clockIn({
-    required double latitude,
-    required double longitude,
+  Future<TimeEntry?> currentEntry();
+
+  Future<TimeEntry> clockIn(LocationFix fix);
+
+  Future<TimeEntry> clockOut(LocationFix fix);
+
+  /// Fichajes que se cruzan con el rango (para "quién trabaja hoy").
+  Future<List<TimeEntry>> fetchEntries(DateTime from, DateTime to);
+
+  Future<List<WorkPhoto>> fetchWorkPhotos(String timeEntryId);
+
+  /// Sube una foto de evidencia al fichaje abierto.
+  Future<WorkPhoto> uploadWorkPhoto({
+    required String timeEntryId,
+    required Uint8List jpegBytes,
+    LocationFix? fix,
   });
-
-  Future<ClockStatus> clockOut({
-    required double latitude,
-    required double longitude,
-  });
-
-  Future<ClockStatus> currentStatus();
-}
-
-class ClockStatus {
-  const ClockStatus({
-    required this.clockedIn,
-    required this.since,
-    required this.insideAllowedRadius,
-  });
-
-  final bool clockedIn;
-  final DateTime? since;
-  final bool insideAllowedRadius;
 }

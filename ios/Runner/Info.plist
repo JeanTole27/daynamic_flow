@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Se usa tu ubicación solo al marcar entrada y salida, para confirmar que estás en el sitio de tu turno.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Se usa la cámara para tomar fotos de evidencia del trabajo realizado en tu turno.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Se usa para adjuntar fotos de evidencia del trabajo realizado en tu turno.</string>
 </dict>
 </plist>

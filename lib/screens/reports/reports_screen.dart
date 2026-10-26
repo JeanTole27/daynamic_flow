@@ -31,7 +31,7 @@ class ReportsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              '1–15 sept 2026',
+              app.periodLabel,
               style: AppTextStyles.mono(size: 12, color: AppColors.muted),
             ),
             const SizedBox(height: 16),
@@ -56,7 +56,7 @@ class ReportsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        AppState.totalHoursLabel,
+                        app.totalHoursLabel,
                         style: AppTextStyles.mono(
                           size: 34,
                           weight: FontWeight.w700,
@@ -70,7 +70,7 @@ class ReportsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        AppState.estimatedCostLabel,
+                        app.estimatedCostLabel,
                         style: AppTextStyles.mono(
                           size: 17,
                           weight: FontWeight.w700,

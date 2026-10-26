@@ -44,5 +44,17 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Secretos y configuración local (llaves de Supabase, firma de Android)
+.env
+.env.*
+!.env.example
+*.env.json
+!env.example.json
+android/key.properties
+*.jks
+*.keystore
+supabase/.temp/
+supabase/.branches/
+
 # Widget Preview related
 .widget_preview/

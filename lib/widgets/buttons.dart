@@ -38,6 +38,8 @@ class PrimaryButton extends StatelessWidget {
           style: AppTextStyles.sans(
             size: dense ? 13.5 : 16,
             weight: FontWeight.w700,
+            // sans() trae color claro por defecto y taparía el foregroundColor.
+            color: disabled ? AppColors.mutedDim : AppColors.ink,
           ),
         ),
       ),

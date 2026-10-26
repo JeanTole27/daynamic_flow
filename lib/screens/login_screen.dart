@@ -16,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _email = TextEditingController(text: 'carlos@elroble.co');
+  final _email = TextEditingController();
   final _pass = TextEditingController();
 
   @override
@@ -26,16 +26,25 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _enterAs(UserRole role) {
-    final app = AppScope.of(context);
-    if (role == UserRole.manager) {
-      app.loginAs(UserRole.manager, email: _email.text.trim());
-    } else {
-      app.loginAs(UserRole.employee, email: 'ana.torres@elroble.co');
-    }
-    Navigator.of(context).pushReplacement(
+  void _goToShell() {
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const AppShell()),
+      (route) => false,
     );
+  }
+
+  /// Modo demo: se elige el rol a mano.
+  void _enterAs(UserRole role) {
+    AppScope.of(context).loginAs(role);
+    _goToShell();
+  }
+
+  Future<void> _signIn() async {
+    final app = AppScope.of(context);
+    final ok = await app.signIn(_email.text, _pass.text);
+    if (!mounted) return;
+    _pass.clear();
+    if (ok) _goToShell();
   }
 
   @override
@@ -99,25 +108,49 @@ class _LoginScreenState extends State<LoginScreen> {
                 constraints: const BoxConstraints(maxWidth: 290),
                 child: Text(t['loginSub'], style: AppTextStyles.body()),
               ),
-              const SizedBox(height: 30),
-              _Field(label: t['email'], controller: _email),
-              const SizedBox(height: 12),
-              _Field(label: t['password'], controller: _pass, obscure: true),
-              const SizedBox(height: 40),
-              Text(
-                t['enterAs'].toUpperCase(),
-                style: AppTextStyles.eyebrow(color: AppColors.mutedDim),
-              ),
-              const SizedBox(height: 9),
-              PrimaryButton(
-                label: t['manager'],
-                onPressed: () => _enterAs(UserRole.manager),
-              ),
-              const SizedBox(height: 9),
-              SecondaryButton(
-                label: t['employee'],
-                onPressed: () => _enterAs(UserRole.employee),
-              ),
+              if (app.isDemo) ...[
+                const SizedBox(height: 30),
+                Text(
+                  t['demoMode'].toUpperCase(),
+                  style: AppTextStyles.eyebrow(color: AppColors.amber),
+                ),
+                const SizedBox(height: 9),
+                Text(
+                  t['enterAs'].toUpperCase(),
+                  style: AppTextStyles.eyebrow(color: AppColors.mutedDim),
+                ),
+                const SizedBox(height: 9),
+                PrimaryButton(
+                  label: t['manager'],
+                  onPressed: () => _enterAs(UserRole.manager),
+                ),
+                const SizedBox(height: 9),
+                SecondaryButton(
+                  label: t['employee'],
+                  onPressed: () => _enterAs(UserRole.employee),
+                ),
+              ] else ...[
+                const SizedBox(height: 30),
+                _Field(
+                  label: t['email'],
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                ),
+                const SizedBox(height: 12),
+                _Field(
+                  label: t['password'],
+                  controller: _pass,
+                  obscure: true,
+                  autofillHints: const [AutofillHints.password],
+                  onSubmitted: (_) => _signIn(),
+                ),
+                const SizedBox(height: 28),
+                PrimaryButton(
+                  label: app.busy ? '…' : t['signIn'],
+                  onPressed: app.busy ? null : _signIn,
+                ),
+              ],
               const SizedBox(height: 4),
               Center(
                 child: TextButton(
@@ -147,11 +180,17 @@ class _Field extends StatelessWidget {
     required this.label,
     required this.controller,
     this.obscure = false,
+    this.keyboardType,
+    this.autofillHints,
+    this.onSubmitted,
   });
 
   final String label;
   final TextEditingController controller;
   final bool obscure;
+  final TextInputType? keyboardType;
+  final Iterable<String>? autofillHints;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +205,11 @@ class _Field extends StatelessWidget {
         TextField(
           controller: controller,
           obscureText: obscure,
+          autocorrect: !obscure,
+          enableSuggestions: !obscure,
+          keyboardType: keyboardType,
+          autofillHints: autofillHints,
+          onSubmitted: onSubmitted,
           style: AppTextStyles.sans(size: 15),
         ),
       ],

@@ -7,6 +7,7 @@ import '../../theme/app_text_styles.dart';
 import '../chat/chat_list_screen.dart';
 import '../home/employee_home_screen.dart';
 import '../home/manager_home_screen.dart';
+import '../login_screen.dart';
 import '../more/more_screen.dart';
 import '../profile/profile_screen.dart';
 import '../schedule/my_time_screen.dart';
@@ -46,6 +47,18 @@ class AppShellState extends State<AppShell> {
     final app = AppScope.of(context);
     final t = app.strings;
     final isManager = app.role == UserRole.manager;
+
+    // La sesión venció o fue revocada en el servidor: volver al login.
+    if (!app.isSignedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      });
+      return const Scaffold();
+    }
 
     // Switching role changes the whole tab set — start back at the first
     // tab instead of keeping a numeric index that now points somewhere

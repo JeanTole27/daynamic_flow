@@ -19,9 +19,23 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _draft = TextEditingController();
   final _scroll = ScrollController();
+  AppState? _app;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_app == null) {
+      final app = _app = AppScope.of(context);
+      // Carga mensajes y marca leído después del primer frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) app.openThread(widget.threadKey);
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _app?.closeThread(widget.threadKey);
     _draft.dispose();
     _scroll.dispose();
     super.dispose();
@@ -75,7 +89,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemCount: messages.length,
                 itemBuilder: (context, i) {
                   final m = messages[i];
-                  final showName = !m.fromMe && (i == 0 || messages[i - 1].from != m.from);
+                  final showName = !m.fromMe &&
+                      (i == 0 || messages[i - 1].senderId != m.senderId ||
+                          messages[i - 1].from != m.from);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Align(
@@ -103,7 +119,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 4),
                                   child: Text(
-                                    m.from.toUpperCase(),
+                                    app.senderName(m).toUpperCase(),
                                     style: AppTextStyles.mono(
                                       size: 9.5,
                                       weight: FontWeight.w700,
@@ -136,6 +152,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _draft,
+                      maxLength: AppState.maxMessageLength,
+                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                       style: AppTextStyles.sans(size: 14.5),
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(app),

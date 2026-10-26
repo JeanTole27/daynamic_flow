@@ -25,8 +25,9 @@ class _NewShiftSheet extends StatefulWidget {
 
 class _NewShiftSheetState extends State<_NewShiftSheet> {
   int _who = 0;
-  int _day = 2;
+  int? _day;
   int _time = 0;
+  int _site = 0;
 
   static const _times = ['09–17', '14–22', '17–01'];
 
@@ -35,6 +36,12 @@ class _NewShiftSheetState extends State<_NewShiftSheet> {
     final app = AppScope.of(context);
     final t = app.strings;
     final days = app.dayLabels;
+    final people = app.assignableEmployees;
+    final sites = app.sites;
+    // Por defecto: hoy (no tiene sentido crear turnos en días ya pasados).
+    final day = _day ?? app.todayIndex;
+    final who = _who < people.length ? _who : 0;
+    final site = _site < sites.length ? _site : 0;
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -71,10 +78,10 @@ class _NewShiftSheetState extends State<_NewShiftSheet> {
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (var i = 0; i < app.employees.length; i++)
+                for (var i = 0; i < people.length; i++)
                   SelectableChip(
-                    label: app.employees[i].name.split(' ').first,
-                    selected: _who == i,
+                    label: people[i].firstName,
+                    selected: who == i,
                     onTap: () => setState(() => _who = i),
                   ),
               ],
@@ -87,7 +94,7 @@ class _NewShiftSheetState extends State<_NewShiftSheet> {
                 for (var i = 0; i < 7; i++) ...[
                   SelectableChip(
                     label: days[i].substring(0, 2),
-                    selected: _day == i,
+                    selected: day == i,
                     onTap: () => setState(() => _day = i),
                     mono: true,
                     expand: true,
@@ -113,17 +120,44 @@ class _NewShiftSheetState extends State<_NewShiftSheet> {
                 ],
               ],
             ),
+            if (sites.length > 1) ...[
+              const SizedBox(height: 16),
+              SectionLabel(t['site']),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (var i = 0; i < sites.length; i++)
+                    SelectableChip(
+                      label: sites[i].name,
+                      selected: site == i,
+                      onTap: () => setState(() => _site = i),
+                    ),
+                ],
+              ),
+            ],
+            if (sites.isEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                t['noSites'],
+                style: AppTextStyles.sans(size: 12, color: AppColors.red),
+              ),
+            ],
             const SizedBox(height: 18),
             PrimaryButton(
               label: t['assign'],
-              onPressed: () {
-                app.createShift(
-                  employeeId: app.employees[_who].id,
-                  weekdayIndex: _day,
-                  timeLabel: _times[_time],
-                );
-                Navigator.of(context).pop();
-              },
+              onPressed: people.isEmpty || sites.isEmpty
+                  ? null
+                  : () {
+                      app.createShift(
+                        employeeId: people[who].id,
+                        weekdayIndex: day,
+                        timeLabel: _times[_time],
+                        siteId: sites[site].id,
+                      );
+                      Navigator.of(context).pop();
+                    },
             ),
           ],
         ),

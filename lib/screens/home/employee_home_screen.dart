@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
-import '../../state/app_state.dart';
+import '../../i18n/formatters.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
@@ -17,7 +17,8 @@ class EmployeeHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = app.strings;
-    final en = app.isEnglish;
+    final next = app.nextShift;
+    final claimable = app.claimableSwaps.take(2).toList();
 
     return Scaffold(
       body: SafeArea(
@@ -32,9 +33,9 @@ class EmployeeHomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SectionLabel(t['todayIs']),
+                      SectionLabel(app.todayLabel),
                       const SizedBox(height: 6),
-                      Text(t['helloAna'], style: AppTextStyles.h1()),
+                      Text(app.greeting, style: AppTextStyles.h1()),
                     ],
                   ),
                 ),
@@ -67,7 +68,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 9),
                   Text(
-                    '09:00',
+                    next == null ? '—' : Fmt.time(next.startsAt),
                     style: AppTextStyles.mono(
                       size: 40,
                       weight: FontWeight.w700,
@@ -77,7 +78,10 @@ class EmployeeHomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${t['untilFive']} · ${t['waitress']}',
+                    next == null
+                        ? t['noUpcomingShift']
+                        : '${t.fmt('untilTime', {'time': Fmt.time(next.endsAt)})} · '
+                              '${app.me.roleFor(app.isEnglish)}',
                     style: AppTextStyles.sans(
                       size: 14.5,
                       weight: FontWeight.w600,
@@ -97,7 +101,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                         const PulseDot(),
                         const SizedBox(width: 7),
                         Text(
-                          t['startsIn'],
+                          next == null ? '—' : app.nextShiftCountdown(next),
                           style: AppTextStyles.sans(
                             size: 12.5,
                             weight: FontWeight.w600,
@@ -132,9 +136,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          app.clockedIn
-                              ? AppState.formatElapsed(app.elapsed)
-                              : t['clockCardSubIn'],
+                          app.clockCardSubtitle,
                           style: AppTextStyles.mono(
                             size: 12,
                             color: AppColors.muted,
@@ -170,8 +172,8 @@ class EmployeeHomeScreen extends StatelessWidget {
                       padding: EdgeInsets.only(right: i == 6 ? 0 : 5),
                       child: _DayPill(
                         label: app.dayLabels[i].substring(0, 2),
-                        date: i + 1,
-                        active: AppState.employeeShiftDays.contains(i),
+                        date: app.week.isEmpty ? i + 1 : app.week[i].dayNumber,
+                        active: app.myShiftWeekdays.contains(i),
                       ),
                     ),
                   ),
@@ -180,91 +182,21 @@ class EmployeeHomeScreen extends StatelessWidget {
             const SizedBox(height: 18),
             SectionLabel(t['pendingYou']),
             const SizedBox(height: 8),
-            AppCard(
-              padding: const EdgeInsets.all(14),
-              radius: 16,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.amber,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          en
-                              ? "Luis wants your Saturday shift"
-                              : 'Luis quiere tu turno del sábado',
-                          style: AppTextStyles.sans(
-                            size: 13.5,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          en ? 'Sat 12 · 7:00–3:00' : 'Sáb 12 · 07:00–15:00',
-                          style: AppTextStyles.sans(
-                            size: 11.5,
-                            color: AppColors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            AppCard(
-              padding: const EdgeInsets.all(14),
-              radius: 16,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.lime,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          en
-                              ? 'Confirm next week availability'
-                              : 'Confirma tu disponibilidad',
-                          style: AppTextStyles.sans(
-                            size: 13.5,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          en ? 'Closes Wednesday' : 'Cierra el miércoles',
-                          style: AppTextStyles.sans(
-                            size: 11.5,
-                            color: AppColors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            if (claimable.isEmpty)
+              _PendingCard(
+                color: AppColors.lime,
+                title: t['allClear'],
+                subtitle: t['allClearSub'],
+              )
+            else
+              for (final swap in claimable) ...[
+                _PendingCard(
+                  color: AppColors.amber,
+                  title: app.swapTitle(swap),
+                  subtitle: app.swapTimeLabel(swap),
+                ),
+                const SizedBox(height: 8),
+              ],
           ],
         ),
       ),
@@ -321,6 +253,56 @@ class _DayPill extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PendingCard extends StatelessWidget {
+  const _PendingCard({
+    required this.color,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final Color color;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      radius: 16,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 5,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.sans(size: 13.5, weight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.sans(size: 11.5, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

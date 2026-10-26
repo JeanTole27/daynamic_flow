@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
+import '../../state/app_state.dart';
+import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/buttons.dart';
+import '../chat/chat_screen.dart';
 
 class MemberDetailScreen extends StatelessWidget {
   const MemberDetailScreen({super.key, required this.employeeId});
 
-  final int employeeId;
+  final String employeeId;
 
   @override
   Widget build(BuildContext context) {
@@ -19,12 +22,24 @@ class MemberDetailScreen extends StatelessWidget {
     final emp = app.employeeById(employeeId);
     final en = app.isEnglish;
 
-    final rows = <(String, String)>[
-      (t['position'], emp.roleFor(en)),
-      (t['hourlyRate'], emp.rate),
-      (t['shiftsThisWeek'], '4'),
-      (t['availability'], t['days5']),
+    final rows = <(String, Widget)>[
+      (t['position'], _value(emp.roleFor(en))),
+      (t['hourlyRate'], _value(app.rateLabel(emp))),
+      (t['shiftsThisWeek'], _value('${app.shiftsThisWeekOf(emp.id)}')),
+      (
+        t['availability'],
+        FutureBuilder<List<bool>>(
+          future: app.availabilityOf(emp.id),
+          builder: (_, snap) => _value(
+            snap.hasData
+                ? t.fmt('availDaysN', {'n': snap.data!.where((d) => d).length})
+                : '…',
+          ),
+        ),
+      ),
     ];
+    final isMe = emp.id == app.me.id;
+    final inactive = emp.status == EmployeeStatus.inactive;
 
     return Scaffold(
       body: SafeArea(
@@ -103,7 +118,7 @@ class MemberDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          emp.rate,
+                          app.rateLabel(emp),
                           style: AppTextStyles.mono(
                             size: 22,
                             weight: FontWeight.w700,
@@ -149,7 +164,7 @@ class MemberDetailScreen extends StatelessWidget {
                               color: AppColors.muted,
                             ),
                           ),
-                          Text(rows[i].$2, style: AppTextStyles.mono(size: 13.5)),
+                          rows[i].$2,
                         ],
                       ),
                     ),
@@ -161,16 +176,30 @@ class MemberDetailScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: PrimaryButton(
-                    label: t['save'],
-                    onPressed: () => app.saveEmployeeChanges(emp.id),
+                    label: t['directMessage'],
+                    onPressed: isMe || inactive
+                        ? null
+                        : () => _openChat(context, app, emp),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DangerOutlineButton(
-                    label: t['deactivate'],
-                    onPressed: () => app.deactivateEmployee(emp.id),
-                  ),
+                  child: inactive
+                      ? SecondaryButton(
+                          label: t['activate'],
+                          onPressed: isMe
+                              ? null
+                              : () => app.setEmployeeStatus(
+                                  emp.id,
+                                  EmployeeStatus.active,
+                                ),
+                        )
+                      : DangerOutlineButton(
+                          label: t['deactivate'],
+                          onPressed: isMe
+                              ? null
+                              : () => _confirmDeactivate(context, app, emp),
+                        ),
                 ),
               ],
             ),
@@ -178,5 +207,54 @@ class MemberDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _value(String text) => Text(text, style: AppTextStyles.mono(size: 13.5));
+
+  Future<void> _openChat(
+    BuildContext context,
+    AppState app,
+    Employee emp,
+  ) async {
+    final navigator = Navigator.of(context);
+    final threadId = await app.openDirectThreadWith(emp.id);
+    if (threadId == null) return;
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(threadKey: threadId, title: emp.name),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeactivate(
+    BuildContext context,
+    AppState app,
+    Employee emp,
+  ) async {
+    final t = app.strings;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        content: Text(
+          t.fmt('confirmDeactivate', {'name': emp.name}),
+          style: AppTextStyles.sans(size: 14.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(t['cancel']),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              t['deactivate'],
+              style: const TextStyle(color: AppColors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) app.deactivateEmployee(emp.id);
   }
 }

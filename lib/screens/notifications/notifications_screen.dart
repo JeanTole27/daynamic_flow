@@ -16,9 +16,9 @@ class NotificationsScreen extends StatelessWidget {
     final t = app.strings;
 
     final prefLabels = [
-      app.isEnglish ? 'Shift reminder (30 min)' : 'Recordatorio de turno (30 min)',
-      app.isEnglish ? 'New messages' : 'Mensajes nuevos',
-      app.isEnglish ? 'Forgot to clock out' : 'Olvidé marcar salida',
+      t['prefShiftReminder'],
+      t['prefNewMessages'],
+      t['prefForgotOut'],
     ];
 
     return Scaffold(
@@ -59,7 +59,7 @@ class NotificationsScreen extends StatelessWidget {
             for (final n in app.notifs) ...[
               _NotifCard(
                 title: n.textFor(app.isEnglish),
-                time: n.timeLabel,
+                time: app.notifTimeLabel(n),
                 read: n.read,
                 onTap: () => app.markNotifRead(n.id),
               ),

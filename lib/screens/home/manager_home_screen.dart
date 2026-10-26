@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
-import '../../state/app_state.dart';
 import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -36,9 +35,9 @@ class ManagerHomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SectionLabel(t['restaurantName']),
+                      SectionLabel(app.orgName),
                       const SizedBox(height: 6),
-                      Text(t['helloCarlos'], style: AppTextStyles.h1()),
+                      Text(app.greeting, style: AppTextStyles.h1()),
                     ],
                   ),
                 ),
@@ -61,7 +60,7 @@ class ManagerHomeScreen extends StatelessWidget {
                     background: AppColors.lime,
                     valueColor: AppColors.ink,
                     value: '${app.workingNowCount}',
-                    valueSuffix: '/${AppState.teamSize}',
+                    valueSuffix: '/${app.teamSize}',
                     label: t['workingNow'],
                     labelColor: AppColors.ink.withValues(alpha: 0.72),
                     onTap: () => Navigator.of(context).push(

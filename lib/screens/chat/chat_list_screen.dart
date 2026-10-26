@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
-import '../../state/app_state.dart';
+import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
@@ -24,8 +24,8 @@ class ChatListScreen extends StatelessWidget {
           children: [
             Text(t['chat'], style: AppTextStyles.h1()),
             const SizedBox(height: 14),
-            for (final thread in AppState.chatThreadMeta) ...[
-              _ThreadRow(threadKey: thread.key, initials: thread.initials, name: thread.name),
+            for (final thread in app.threads) ...[
+              _ThreadRow(thread: thread),
               const SizedBox(height: 6),
             ],
           ],
@@ -36,30 +36,25 @@ class ChatListScreen extends StatelessWidget {
 }
 
 class _ThreadRow extends StatelessWidget {
-  const _ThreadRow({
-    required this.threadKey,
-    required this.initials,
-    required this.name,
-  });
+  const _ThreadRow({required this.thread});
 
-  final String threadKey;
-  final String initials;
-  final String name;
+  final ChatThread thread;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final messages = app.threadMessages(threadKey);
-    final last = messages.isNotEmpty ? messages.last.text : '';
-    final unread = threadKey == 'general' ? 3 : (threadKey == 'LP' ? 1 : 0);
-
-    final isGeneral = threadKey == 'general';
+    final name = app.threadTitle(thread);
+    final last = thread.lastMessage;
+    final unread = thread.unread;
+    final isGeneral = thread.isGeneral;
 
     return AppCard(
       radius: 18,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ChatScreen(threadKey: threadKey, title: name)),
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(threadKey: thread.id, title: name),
+        ),
       ),
       child: Row(
         children: [
@@ -82,8 +77,8 @@ class _ThreadRow extends StatelessWidget {
                   ),
                 )
               : InitialsAvatar(
-                  initials: initials,
-                  paletteIndex: _avatarIndexFor(threadKey),
+                  initials: app.threadInitials(thread),
+                  paletteIndex: app.threadAvatarIndex(thread),
                   size: 40,
                   fontSize: 13,
                 ),
@@ -125,10 +120,4 @@ class _ThreadRow extends StatelessWidget {
     );
   }
 
-  int _avatarIndexFor(String key) => switch (key) {
-    'LP' => 1,
-    'MR' => 2,
-    'DS' => 3,
-    _ => 0,
-  };
 }

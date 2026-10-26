@@ -7,6 +7,8 @@ import '../widgets/avatar.dart';
 import '../widgets/buttons.dart';
 import 'shell/app_shell.dart';
 
+/// Aceptar invitación. Con Supabase, el invitado llega autenticado por el
+/// enlace del correo (deep link) y aquí solo define su contraseña.
 class InviteScreen extends StatefulWidget {
   const InviteScreen({super.key});
 
@@ -16,7 +18,7 @@ class InviteScreen extends StatefulWidget {
 
 class _InviteScreenState extends State<InviteScreen> {
   final _pass = TextEditingController();
-  bool _gpsConsent = true;
+  bool _gpsConsent = false;
 
   @override
   void dispose() {
@@ -24,10 +26,33 @@ class _InviteScreenState extends State<InviteScreen> {
     super.dispose();
   }
 
+  Future<void> _accept() async {
+    final app = AppScope.of(context);
+    final ok = await app.acceptInvite(
+      password: _pass.text,
+      locationConsent: _gpsConsent,
+    );
+    if (!mounted || !ok) return;
+    _pass.clear();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AppShell()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = app.strings;
+
+    // Sin sesión del enlace de invitación no hay a quién activar.
+    final linkMissing = !app.isDemo && !app.needsInviteAcceptance;
+    // En el demo se muestra un invitado de ejemplo.
+    final inviteeName = app.isDemo ? 'Luis Pérez' : app.me.name;
+    final inviteeLine = app.isDemo
+        ? '${t['cook']} · luis.perez@mail.com'
+        : '${app.me.roleFor(app.isEnglish)} · ${app.me.email}';
+    final inviteeInitials = app.isDemo ? 'LP' : app.me.initials;
 
     return Scaffold(
       body: SafeArea(
@@ -36,7 +61,7 @@ class _InviteScreenState extends State<InviteScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const BackPill(),
+              if (Navigator.of(context).canPop()) const BackPill(),
               const SizedBox(height: 22),
               Text(
                 t['joinTeam'],
@@ -48,129 +73,141 @@ class _InviteScreenState extends State<InviteScreen> {
                 ),
               ),
               const SizedBox(height: 9),
-              RichText(
-                text: TextSpan(
+              if (linkMissing) ...[
+                Text(
+                  t.error('invite_link_required'),
                   style: AppTextStyles.sans(size: 14, color: AppColors.muted),
-                  children: [
-                    TextSpan(text: '${t['invitedBy']} '),
-                    TextSpan(
-                      text: t['restaurantName'],
-                      style: const TextStyle(
-                        color: AppColors.text,
-                        fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(height: 18),
+                SecondaryButton(
+                  label: t['retry'],
+                  onPressed: app.restoreSession,
+                ),
+              ] else ...[
+                RichText(
+                  text: TextSpan(
+                    style: AppTextStyles.sans(size: 14, color: AppColors.muted),
+                    children: [
+                      TextSpan(text: '${t['invitedBy']} '),
+                      TextSpan(
+                        text: app.orgName,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.border),
+                const SizedBox(height: 22),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      InitialsAvatar(
+                        initials: inviteeInitials,
+                        paletteIndex: 1,
+                        size: 44,
+                        fontSize: 14,
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              inviteeName,
+                              style: AppTextStyles.sans(
+                                size: 15.5,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              inviteeLine,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.sans(
+                                size: 12.5,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const InitialsAvatar(
-                      initials: 'LP',
-                      paletteIndex: 1,
-                      size: 44,
-                      fontSize: 14,
-                    ),
-                    const SizedBox(width: 13),
-                    Column(
+                const SizedBox(height: 16),
+                Text(
+                  t['createPass'].toUpperCase(),
+                  style: AppTextStyles.eyebrow(),
+                ),
+                const SizedBox(height: 7),
+                TextField(
+                  controller: _pass,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autofillHints: const [AutofillHints.newPassword],
+                  style: AppTextStyles.sans(size: 15),
+                ),
+                const SizedBox(height: 2),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: InkWell(
+                    onTap: () => setState(() => _gpsConsent = !_gpsConsent),
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Luis Pérez',
-                          style: AppTextStyles.sans(
-                            size: 15.5,
-                            weight: FontWeight.w600,
+                        Container(
+                          width: 16,
+                          height: 16,
+                          margin: const EdgeInsets.only(top: 2),
+                          decoration: BoxDecoration(
+                            color: _gpsConsent
+                                ? AppColors.lime
+                                : Colors.transparent,
+                            border: Border.all(
+                              color: _gpsConsent
+                                  ? AppColors.lime
+                                  : AppColors.borderStrong,
+                            ),
+                            borderRadius: BorderRadius.circular(5),
                           ),
+                          child: _gpsConsent
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 11,
+                                  color: AppColors.ink,
+                                )
+                              : null,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${t['cook']} · luis.perez@mail.com',
-                          style: AppTextStyles.sans(
-                            size: 12.5,
-                            color: AppColors.muted,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            t['gpsConsent'],
+                            style: AppTextStyles.sans(
+                              size: 11.5,
+                              color: AppColors.muted,
+                              height: 1.45,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                t['createPass'].toUpperCase(),
-                style: AppTextStyles.eyebrow(),
-              ),
-              const SizedBox(height: 7),
-              TextField(
-                controller: _pass,
-                obscureText: true,
-                style: AppTextStyles.sans(size: 15),
-              ),
-              const SizedBox(height: 2),
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: () =>
-                          setState(() => _gpsConsent = !_gpsConsent),
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        margin: const EdgeInsets.only(top: 2),
-                        decoration: BoxDecoration(
-                          color: _gpsConsent
-                              ? AppColors.lime
-                              : Colors.transparent,
-                          border: Border.all(
-                            color: _gpsConsent
-                                ? AppColors.lime
-                                : AppColors.borderStrong,
-                          ),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: _gpsConsent
-                            ? const Icon(
-                                Icons.check,
-                                size: 11,
-                                color: AppColors.ink,
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        t['gpsConsent'],
-                        style: AppTextStyles.sans(
-                          size: 11.5,
-                          color: AppColors.muted,
-                          height: 1.45,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 28),
+                PrimaryButton(
+                  label: app.busy ? '…' : t['createAccount'],
+                  onPressed: app.busy ? null : _accept,
                 ),
-              ),
-              const SizedBox(height: 28),
-              PrimaryButton(
-                label: t['createAccount'],
-                onPressed: () {
-                  app.acceptInvite();
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const AppShell()),
-                  );
-                },
-              ),
+              ],
             ],
           ),
         ),

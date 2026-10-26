@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/avatar.dart';
+import 'invite_member_sheet.dart';
 import 'member_detail_screen.dart';
 
 class TeamScreen extends StatefulWidget {
@@ -49,7 +50,7 @@ class _TeamScreenState extends State<TeamScreen> {
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(13),
-                      onTap: app.inviteEmployee,
+                      onTap: () => showInviteMemberSheet(context),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 15,

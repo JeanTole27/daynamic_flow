@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
+import '../../i18n/formatters.dart';
 import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -83,17 +84,16 @@ class _MineTab extends StatelessWidget {
     final app = AppScope.of(context);
     final t = app.strings;
     final days = app.dayLabels;
-    const onDays = [0, 1, 3, 4];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < 5; i++) ...[
+        for (var i = 0; i < 7; i++) ...[
           _MineRow(
             dd: days[i].toUpperCase(),
-            date: i + 1,
-            isToday: i == 0,
-            on: onDays.contains(i),
+            date: app.week.isEmpty ? i + 1 : app.week[i].dayNumber,
+            isToday: i == app.todayIndex,
+            shift: app.myShiftOn(i),
             weekdayIndex: i,
           ),
           const SizedBox(height: 8),
@@ -117,7 +117,7 @@ class _MineTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    t['weekTotalSub'],
+                    app.myWeekShiftsLabel,
                     style: AppTextStyles.sans(
                       size: 11.5,
                       color: AppColors.muted,
@@ -126,7 +126,7 @@ class _MineTab extends StatelessWidget {
                 ],
               ),
               Text(
-                '32h',
+                app.myWeekHoursLabel,
                 style: AppTextStyles.mono(
                   size: 22,
                   weight: FontWeight.w700,
@@ -146,21 +146,24 @@ class _MineRow extends StatelessWidget {
     required this.dd,
     required this.date,
     required this.isToday,
-    required this.on,
+    required this.shift,
     required this.weekdayIndex,
   });
 
   final String dd;
   final int date;
   final bool isToday;
-  final bool on;
+  final Shift? shift;
   final int weekdayIndex;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = app.strings;
-    final canOffer = on && !isToday && !app.hasOfferedShift(weekdayIndex);
+    final shift = this.shift;
+    final on = shift != null;
+    // Solo turnos que aún no empiezan y que no están ya ofrecidos.
+    final canOffer = app.canOfferShift(weekdayIndex);
 
     final Color bg = isToday
         ? AppColors.lime
@@ -211,7 +214,9 @@ class _MineRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  on ? '09:00 – 17:00' : t['free'],
+                  shift != null
+                      ? Fmt.timeRange(shift.startsAt, shift.endsAt)
+                      : t['free'],
                   style: AppTextStyles.mono(
                     size: 15.5,
                     weight: FontWeight.w600,
@@ -219,7 +224,10 @@ class _MineRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  on ? t['waitress'] : t['free'],
+                  shift != null
+                      ? '${app.me.roleFor(app.isEnglish)} · '
+                            '${app.siteById(shift.siteId)?.name ?? ''}'
+                      : t['free'],
                   style: AppTextStyles.sans(
                     size: 12,
                     color: fg.withValues(alpha: 0.62),
@@ -365,6 +373,7 @@ class _SwapCard extends StatelessWidget {
     final app = AppScope.of(context);
     final t = app.strings;
     final emp = app.employeeById(swap.employeeId);
+    final isMine = swap.employeeId == app.me.id;
     final statusLabel = switch (swap.status) {
       SwapStatus.open => t['open'],
       SwapStatus.offered => t['offered'],
@@ -394,14 +403,14 @@ class _SwapCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${app.isEnglish ? "${emp.name.split(' ').first} released " : "${emp.name.split(' ').first} liberó "}${swap.dayLabel}',
+                      app.swapTitle(swap),
                       style: AppTextStyles.sans(
                         size: 14,
                         weight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      swap.timeLabel,
+                      app.swapTimeLabel(swap),
                       style: AppTextStyles.mono(
                         size: 11.5,
                         color: AppColors.muted,
@@ -425,7 +434,7 @@ class _SwapCard extends StatelessWidget {
                   color: statusColor,
                 ),
               ),
-              if (swap.status == SwapStatus.open)
+              if (swap.status == SwapStatus.open && !isMine)
                 SizedBox(
                   width: 110,
                   height: 40,

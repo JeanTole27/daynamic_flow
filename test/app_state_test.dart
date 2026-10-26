@@ -58,7 +58,8 @@ void main() {
     });
 
     test('offerShift publishes a swap and a manager request', () {
-      final app = AppState();
+      // Ofrecer un turno es una acción del empleado (Ana tiene turno el jueves).
+      final app = AppState()..loginAs(UserRole.employee);
       final swapsBefore = app.swaps.length;
       final requestsBefore = app.requests.length;
 
@@ -70,7 +71,8 @@ void main() {
     });
 
     test('offerShift ignores a second offer for the same day', () {
-      final app = AppState();
+      // Ofrecer un turno es una acción del empleado (Ana tiene turno el jueves).
+      final app = AppState()..loginAs(UserRole.employee);
       final swapsBefore = app.swaps.length;
       final requestsBefore = app.requests.length;
 
@@ -89,7 +91,9 @@ void main() {
     });
 
     test('estimatedCostLabel has no stray backslash', () {
-      expect(AppState.estimatedCostLabel, r'$2.03M');
+      final label = AppState().estimatedCostLabel;
+      expect(label, startsWith(r'$'));
+      expect(label, isNot(contains(r'\')));
     });
 
     test('claimSwap moves an open swap to pending', () {

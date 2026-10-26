@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
-import '../../state/app_state.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
@@ -33,10 +32,10 @@ class LiveScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            for (final row in AppState.liveBoard) ...[
+            for (final row in app.liveBoard) ...[
               _LiveRow(
                 employeeId: row.employeeId,
-                sub: app.isEnglish ? row.subEn : row.subEs,
+                sub: row.sub,
                 hours: row.hours,
                 onShift: row.onShift,
               ),
@@ -45,7 +44,9 @@ class LiveScreen extends StatelessWidget {
             const SizedBox(height: 8),
             SecondaryButton(
               label: t['fixClock'],
-              onPressed: () => app.fixClockEntry(AppState.liveBoard.first.employeeId),
+              onPressed: app.liveBoard.isEmpty
+                  ? null
+                  : () => app.fixClockEntry(app.liveBoard.first.employeeId),
             ),
           ],
         ),
@@ -62,7 +63,7 @@ class _LiveRow extends StatelessWidget {
     required this.onShift,
   });
 
-  final int employeeId;
+  final String employeeId;
   final String sub;
   final String hours;
   final bool onShift;

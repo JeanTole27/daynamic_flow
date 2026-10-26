@@ -1,20 +1,16 @@
 import '../state/models.dart';
 
-/// CONEXIÓN PENDIENTE — no implementada a propósito.
-///
-/// Reemplaza el login simulado de `AppState.loginAs` / `AppState.acceptInvite`.
-/// Debe validar credenciales contra el backend, devolver un token/sesión y el
-/// rol real del usuario (en vez del rol elegido a mano en el prototipo).
+/// Sesión del usuario. El rol sale del perfil en la base de datos — nunca
+/// de lo que el usuario elija en pantalla.
 abstract class AuthService {
-  Future<UserRole> signIn({required String email, required String password});
+  /// Sesión guardada al abrir la app (o la que dejó el enlace de invitación).
+  Future<SessionUser?> restoreSession();
 
-  Future<void> acceptInvite({
-    required String inviteToken,
-    required String password,
-  });
+  Future<SessionUser> signIn({required String email, required String password});
+
+  /// El invitado llega autenticado por el enlace del correo; aquí define su
+  /// contraseña y su perfil pasa de 'invited' a 'active'.
+  Future<SessionUser> acceptInvite({required String password});
 
   Future<void> signOut();
-
-  /// Sesión restaurada al abrir la app (token guardado, biometría, etc.).
-  Future<UserRole?> restoreSession();
 }

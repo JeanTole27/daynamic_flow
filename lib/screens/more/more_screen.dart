@@ -79,6 +79,9 @@ class MoreScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            // Cambiar de rol solo existe en el demo: con backend el rol lo
+            // decide la base de datos.
+            if (app.isDemo)
             Material(
               color: AppColors.lime.withValues(alpha: 0.08),
               shape: RoundedRectangleBorder(
