@@ -48,7 +48,7 @@ class _NewShiftSheetState extends State<_NewShiftSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
         decoration: const BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: AppColors.borderStrong)),
         ),
@@ -61,7 +61,7 @@ class _NewShiftSheetState extends State<_NewShiftSheet> {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: AppColors.borderStrong,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),

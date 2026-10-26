@@ -83,10 +83,10 @@ class MoreScreen extends StatelessWidget {
             // decide la base de datos.
             if (app.isDemo)
             Material(
-              color: AppColors.lime.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.lime.withValues(alpha: 0.35)),
+                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35)),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -99,7 +99,7 @@ class MoreScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 14.5,
                       weight: FontWeight.w600,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 ),
@@ -136,7 +136,7 @@ class _MoreRow extends StatelessWidget {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: AppColors.lime,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),

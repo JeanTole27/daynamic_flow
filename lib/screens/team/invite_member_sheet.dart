@@ -85,7 +85,7 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
         decoration: const BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: AppColors.borderStrong)),
         ),

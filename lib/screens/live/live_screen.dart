@@ -82,7 +82,7 @@ class _LiveRow extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: onShift ? AppColors.green : const Color(0xFF3A3F36),
+              color: onShift ? AppColors.green : AppColors.inactive,
               shape: BoxShape.circle,
             ),
           ),
@@ -109,7 +109,7 @@ class _LiveRow extends StatelessWidget {
             style: AppTextStyles.mono(
               size: 13,
               weight: FontWeight.w700,
-              color: onShift ? AppColors.lime : const Color(0xFF5C6357),
+              color: onShift ? AppColors.primaryText : AppColors.mutedDim,
             ),
           ),
         ],

@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 /// Small breathing dot — ported from the `tpulse` keyframe animation next
 /// to "Empieza en 42 minutos" on the employee home screen.
 class PulseDot extends StatefulWidget {
-  const PulseDot({super.key, this.color = AppColors.ink, this.size = 7});
+  const PulseDot({super.key, this.color = AppColors.onPrimary, this.size = 7});
 
   final Color color;
   final double size;

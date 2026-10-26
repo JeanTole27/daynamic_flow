@@ -85,7 +85,7 @@ class IconPillButton extends StatelessWidget {
                   right: 8,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: AppColors.lime,
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                     child: SizedBox(width: 8, height: 8),

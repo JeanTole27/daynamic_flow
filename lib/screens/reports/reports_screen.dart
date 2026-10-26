@@ -38,7 +38,7 @@ class ReportsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: AppColors.lime,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -51,7 +51,7 @@ class ReportsScreen extends StatelessWidget {
                       Text(
                         t['totalHours'].toUpperCase(),
                         style: AppTextStyles.eyebrow(
-                          color: AppColors.ink.withValues(alpha: 0.62),
+                          color: AppColors.onPrimary.withValues(alpha: 0.62),
                         ),
                       ),
                       const SizedBox(height: 5),
@@ -60,7 +60,7 @@ class ReportsScreen extends StatelessWidget {
                         style: AppTextStyles.mono(
                           size: 34,
                           weight: FontWeight.w700,
-                          color: AppColors.ink,
+                          color: AppColors.onPrimary,
                           letterSpacing: -1.2,
                         ),
                       ),
@@ -74,7 +74,7 @@ class ReportsScreen extends StatelessWidget {
                         style: AppTextStyles.mono(
                           size: 17,
                           weight: FontWeight.w700,
-                          color: AppColors.ink,
+                          color: AppColors.onPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -83,7 +83,7 @@ class ReportsScreen extends StatelessWidget {
                         style: AppTextStyles.sans(
                           size: 11,
                           weight: FontWeight.w600,
-                          color: AppColors.ink.withValues(alpha: 0.62),
+                          color: AppColors.onPrimary.withValues(alpha: 0.62),
                         ),
                       ),
                     ],
@@ -172,9 +172,9 @@ class _EmployeeBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: fraction,
             minHeight: 8,
-            backgroundColor: const Color(0xFF1F241C),
+            backgroundColor: AppColors.cardAlt,
             valueColor: AlwaysStoppedAnimation(
-              overtime ? AppColors.amber : AppColors.lime,
+              overtime ? AppColors.amber : AppColors.primary,
             ),
           ),
         ),

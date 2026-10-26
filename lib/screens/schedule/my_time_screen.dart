@@ -130,7 +130,7 @@ class _MineTab extends StatelessWidget {
                 style: AppTextStyles.mono(
                   size: 22,
                   weight: FontWeight.w700,
-                  color: AppColors.lime,
+                  color: AppColors.primaryText,
                 ),
               ),
             ],
@@ -166,13 +166,13 @@ class _MineRow extends StatelessWidget {
     final canOffer = app.canOfferShift(weekdayIndex);
 
     final Color bg = isToday
-        ? AppColors.lime
+        ? AppColors.primary
         : (on ? AppColors.card : Colors.transparent);
     final Color fg = isToday
-        ? AppColors.ink
+        ? AppColors.onPrimary
         : (on ? AppColors.text : AppColors.mutedDim);
     final Color border = isToday
-        ? AppColors.lime
+        ? AppColors.primary
         : (on ? AppColors.border : AppColors.borderStrong);
 
     return Container(
@@ -238,10 +238,10 @@ class _MineRow extends StatelessWidget {
           ),
           if (canOffer)
             Material(
-              color: AppColors.ink.withValues(alpha: 0.12),
+              color: AppColors.onPrimary.withValues(alpha: 0.12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(11),
-                side: BorderSide(color: AppColors.ink.withValues(alpha: 0.22)),
+                side: BorderSide(color: AppColors.onPrimary.withValues(alpha: 0.22)),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(11),
@@ -381,7 +381,7 @@ class _SwapCard extends StatelessWidget {
     };
     final statusColor = switch (swap.status) {
       SwapStatus.open => AppColors.green,
-      SwapStatus.offered => AppColors.lime,
+      SwapStatus.offered => AppColors.primary,
       SwapStatus.pending => AppColors.amber,
     };
 

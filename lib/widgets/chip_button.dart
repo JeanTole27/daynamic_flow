@@ -23,11 +23,11 @@ class SelectableChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final child = Material(
-      color: selected ? AppColors.lime : AppColors.cardAlt,
+      color: selected ? AppColors.primary : AppColors.cardAlt,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: selected ? AppColors.lime : AppColors.borderStrong,
+          color: selected ? AppColors.primary : AppColors.borderStrong,
         ),
       ),
       child: InkWell(
@@ -42,12 +42,12 @@ class SelectableChip extends StatelessWidget {
                 ? AppTextStyles.mono(
                     size: 12.5,
                     weight: FontWeight.w700,
-                    color: selected ? AppColors.ink : AppColors.text,
+                    color: selected ? AppColors.onPrimary : AppColors.text,
                   )
                 : AppTextStyles.sans(
                     size: 13,
                     weight: FontWeight.w600,
-                    color: selected ? AppColors.ink : AppColors.text,
+                    color: selected ? AppColors.onPrimary : AppColors.text,
                   ),
           ),
         ),
@@ -74,7 +74,7 @@ class SegmentTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Material(
-        color: selected ? AppColors.lime : Colors.transparent,
+        color: selected ? AppColors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(11),
         child: InkWell(
           borderRadius: BorderRadius.circular(11),
@@ -87,7 +87,7 @@ class SegmentTab extends StatelessWidget {
               style: AppTextStyles.sans(
                 size: 13,
                 weight: FontWeight.w600,
-                color: selected ? AppColors.ink : AppColors.muted,
+                color: selected ? AppColors.onPrimary : AppColors.muted,
               ),
             ),
           ),

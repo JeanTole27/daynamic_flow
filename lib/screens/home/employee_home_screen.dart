@@ -54,7 +54,7 @@ class EmployeeHomeScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.lime,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Column(
@@ -63,7 +63,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                   Text(
                     t['nextShift'].toUpperCase(),
                     style: AppTextStyles.eyebrow(
-                      color: AppColors.ink.withValues(alpha: 0.62),
+                      color: AppColors.onPrimary.withValues(alpha: 0.62),
                     ),
                   ),
                   const SizedBox(height: 9),
@@ -72,7 +72,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                     style: AppTextStyles.mono(
                       size: 40,
                       weight: FontWeight.w700,
-                      color: AppColors.ink,
+                      color: AppColors.onPrimary,
                       letterSpacing: -1.6,
                     ),
                   ),
@@ -85,7 +85,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 14.5,
                       weight: FontWeight.w600,
-                      color: AppColors.ink,
+                      color: AppColors.onPrimary,
                     ),
                   ),
                   Container(
@@ -93,7 +93,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 13),
                     decoration: const BoxDecoration(
                       border: Border(
-                        top: BorderSide(color: Color(0x290E100C)),
+                        top: BorderSide(color: Color(0x3DFFFFFF)),
                       ),
                     ),
                     child: Row(
@@ -105,7 +105,7 @@ class EmployeeHomeScreen extends StatelessWidget {
                           style: AppTextStyles.sans(
                             size: 12.5,
                             weight: FontWeight.w600,
-                            color: AppColors.ink,
+                            color: AppColors.onPrimary,
                           ),
                         ),
                       ],
@@ -150,12 +150,12 @@ class EmployeeHomeScreen extends StatelessWidget {
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.lime,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
                       Icons.chevron_right,
-                      color: AppColors.ink,
+                      color: AppColors.onPrimary,
                     ),
                   ),
                 ],
@@ -184,7 +184,7 @@ class EmployeeHomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
             if (claimable.isEmpty)
               _PendingCard(
-                color: AppColors.lime,
+                color: AppColors.primary,
                 title: t['allClear'],
                 subtitle: t['allClearSub'],
               )
@@ -234,7 +234,7 @@ class _DayPill extends StatelessWidget {
           height: 26,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: active ? AppColors.lime : Colors.transparent,
+            color: active ? AppColors.primary : Colors.transparent,
             border: active
                 ? null
                 : Border.all(
@@ -248,7 +248,7 @@ class _DayPill extends StatelessWidget {
             style: AppTextStyles.mono(
               size: 11,
               weight: FontWeight.w700,
-              color: active ? AppColors.ink : const Color(0xFF5C6357),
+              color: active ? AppColors.onPrimary : AppColors.mutedDim,
             ),
           ),
         ),

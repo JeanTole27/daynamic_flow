@@ -49,7 +49,7 @@ class ProfileScreen extends StatelessWidget {
                   height: 64,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.lime,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(21),
                   ),
                   child: Text(
@@ -57,7 +57,7 @@ class ProfileScreen extends StatelessWidget {
                     style: AppTextStyles.mono(
                       size: 20,
                       weight: FontWeight.w700,
-                      color: AppColors.ink,
+                      color: AppColors.onPrimary,
                     ),
                   ),
                 ),
@@ -150,10 +150,10 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 14),
             if (app.isDemo)
             Material(
-              color: AppColors.lime.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.lime.withValues(alpha: 0.35)),
+                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35)),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -166,7 +166,7 @@ class ProfileScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 14.5,
                       weight: FontWeight.w600,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 ),

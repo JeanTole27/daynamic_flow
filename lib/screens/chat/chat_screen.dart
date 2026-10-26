@@ -103,7 +103,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                           decoration: BoxDecoration(
-                            color: m.fromMe ? AppColors.lime : AppColors.card,
+                            color: m.fromMe ? AppColors.primary : AppColors.card,
                             border: m.fromMe ? null : Border.all(color: AppColors.border),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(18),
@@ -133,7 +133,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 style: AppTextStyles.sans(
                                   size: 13.5,
                                   height: 1.42,
-                                  color: m.fromMe ? AppColors.ink : AppColors.text,
+                                  color: m.fromMe ? AppColors.onPrimary : AppColors.text,
                                 ),
                               ),
                             ],
@@ -173,14 +173,14 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(999),
-                          borderSide: const BorderSide(color: AppColors.lime),
+                          borderSide: const BorderSide(color: AppColors.primary),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 9),
                   Material(
-                    color: AppColors.lime,
+                    color: AppColors.primary,
                     shape: const CircleBorder(),
                     child: InkWell(
                       customBorder: const CircleBorder(),
@@ -188,7 +188,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: const SizedBox(
                         width: 48,
                         height: 48,
-                        child: Icon(Icons.arrow_upward, color: AppColors.ink),
+                        child: Icon(Icons.arrow_upward, color: AppColors.onPrimary),
                       ),
                     ),
                   ),

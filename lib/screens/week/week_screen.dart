@@ -45,7 +45,7 @@ class WeekScreen extends StatelessWidget {
                   ),
                 ),
                 Material(
-                  color: AppColors.lime,
+                  color: AppColors.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -55,7 +55,7 @@ class WeekScreen extends StatelessWidget {
                     child: const SizedBox(
                       width: 46,
                       height: 46,
-                      child: Icon(Icons.add, color: AppColors.ink, size: 24),
+                      child: Icon(Icons.add, color: AppColors.onPrimary, size: 24),
                     ),
                   ),
                 ),

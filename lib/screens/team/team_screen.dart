@@ -44,7 +44,7 @@ class _TeamScreenState extends State<TeamScreen> {
                 children: [
                   Expanded(child: Text(t['team'], style: AppTextStyles.h1())),
                   Material(
-                    color: AppColors.lime,
+                    color: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(13),
                     ),
@@ -61,7 +61,7 @@ class _TeamScreenState extends State<TeamScreen> {
                           style: AppTextStyles.sans(
                             size: 13,
                             weight: FontWeight.w700,
-                            color: AppColors.ink,
+                            color: AppColors.onPrimary,
                           ),
                         ),
                       ),
@@ -104,7 +104,7 @@ class _EmployeeRow extends StatelessWidget {
     final t = app.strings;
 
     final (label, color) = switch (employee.status) {
-      EmployeeStatus.active => (t['active'], AppColors.lime),
+      EmployeeStatus.active => (t['active'], AppColors.primary),
       EmployeeStatus.invited => (t['invited'], AppColors.amber),
       EmployeeStatus.inactive => (t['inactive'], AppColors.muted),
     };

@@ -114,7 +114,7 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: AppColors.ink,
+        color: AppColors.background,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
@@ -136,7 +136,7 @@ class _BottomBar extends StatelessWidget {
                           width: 26,
                           decoration: BoxDecoration(
                             color: i == index
-                                ? AppColors.lime
+                                ? AppColors.primary
                                 : Colors.transparent,
                             borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(3),
@@ -153,7 +153,7 @@ class _BottomBar extends StatelessWidget {
                               weight: FontWeight.w700,
                               letterSpacing: 1,
                               color: i == index
-                                  ? AppColors.lime
+                                  ? AppColors.primaryText
                                   : AppColors.mutedDim,
                             ),
                           ),

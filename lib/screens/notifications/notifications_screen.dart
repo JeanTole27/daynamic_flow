@@ -49,7 +49,7 @@ class NotificationsScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 12.5,
                       weight: FontWeight.w600,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 ),
@@ -135,7 +135,7 @@ class _NotifCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(
-          color: read ? AppColors.border : AppColors.lime.withValues(alpha: 0.28),
+          color: read ? AppColors.border : AppColors.primary.withValues(alpha: 0.28),
         ),
       ),
       child: InkWell(
@@ -152,7 +152,7 @@ class _NotifCard extends StatelessWidget {
                   width: 9,
                   height: 9,
                   decoration: BoxDecoration(
-                    color: read ? const Color(0xFF3A3F36) : AppColors.lime,
+                    color: read ? AppColors.inactive : AppColors.primary,
                     shape: BoxShape.circle,
                   ),
                 ),

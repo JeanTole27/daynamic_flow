@@ -8,8 +8,8 @@ import 'services/device_services.dart';
 import 'state/app_scaffold_messenger.dart';
 import 'state/app_scope.dart';
 import 'state/app_state.dart';
-import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
+import 'widgets/brand_logo.dart';
 
 class TurnosApp extends StatefulWidget {
   const TurnosApp({super.key, this.backend, this.camera});
@@ -48,9 +48,8 @@ class _TurnosAppState extends State<TurnosApp> {
         title: 'Turnos',
         debugShowCheckedModeBanner: false,
         scaffoldMessengerKey: rootScaffoldMessengerKey,
-        theme: AppTheme.dark,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
+        theme: AppTheme.light,
+        themeMode: ThemeMode.light,
         home: const _StartGate(),
       ),
     );
@@ -66,9 +65,7 @@ class _StartGate extends StatelessWidget {
     final app = AppScope.of(context);
     if (app.isDemo) return const LoginScreen();
     if (app.restoring) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.lime)),
-      );
+      return const SplashView();
     }
     if (!app.isSignedIn) return const LoginScreen();
     if (app.needsInviteAcceptance) return const InviteScreen();

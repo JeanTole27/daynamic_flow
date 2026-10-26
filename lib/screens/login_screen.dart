@@ -4,6 +4,7 @@ import '../state/app_scope.dart';
 import '../state/models.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/brand_logo.dart';
 import '../widgets/buttons.dart';
 import 'invite_screen.dart';
 import 'shell/app_shell.dart';
@@ -61,20 +62,8 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.lime,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: const Icon(
-                      Icons.menu,
-                      color: AppColors.ink,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 11),
+                  const BrandLogo(height: 38),
+                  const SizedBox(width: 12),
                   Text(
                     'Turnos',
                     style: AppTextStyles.sans(
@@ -98,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextSpan(text: '${t['loginH1']}\n'),
                     TextSpan(
                       text: t['loginH2'],
-                      style: const TextStyle(color: AppColors.lime),
+                      style: const TextStyle(color: AppColors.primaryText),
                     ),
                   ],
                 ),

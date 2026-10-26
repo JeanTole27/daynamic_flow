@@ -72,7 +72,7 @@ class _ThreadRow extends StatelessWidget {
                     style: AppTextStyles.mono(
                       size: 13,
                       weight: FontWeight.w700,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 )
@@ -103,7 +103,7 @@ class _ThreadRow extends StatelessWidget {
               height: 22,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.lime,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -111,7 +111,7 @@ class _ThreadRow extends StatelessWidget {
                 style: AppTextStyles.mono(
                   size: 11,
                   weight: FontWeight.w700,
-                  color: AppColors.ink,
+                  color: AppColors.onPrimary,
                 ),
               ),
             ),

@@ -170,11 +170,11 @@ class _InviteScreenState extends State<InviteScreen> {
                           margin: const EdgeInsets.only(top: 2),
                           decoration: BoxDecoration(
                             color: _gpsConsent
-                                ? AppColors.lime
+                                ? AppColors.primary
                                 : Colors.transparent,
                             border: Border.all(
                               color: _gpsConsent
-                                  ? AppColors.lime
+                                  ? AppColors.primary
                                   : AppColors.borderStrong,
                             ),
                             borderRadius: BorderRadius.circular(5),
@@ -183,7 +183,7 @@ class _InviteScreenState extends State<InviteScreen> {
                               ? const Icon(
                                   Icons.check,
                                   size: 11,
-                                  color: AppColors.ink,
+                                  color: AppColors.onPrimary,
                                 )
                               : null,
                         ),

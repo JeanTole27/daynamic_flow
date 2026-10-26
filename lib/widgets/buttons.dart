@@ -23,8 +23,8 @@ class PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: disabled ? AppColors.cardAlt : AppColors.lime,
-          foregroundColor: disabled ? AppColors.mutedDim : AppColors.ink,
+          backgroundColor: disabled ? AppColors.cardAlt : AppColors.primary,
+          foregroundColor: disabled ? AppColors.mutedDim : AppColors.onPrimary,
           disabledBackgroundColor: AppColors.cardAlt,
           disabledForegroundColor: AppColors.mutedDim,
           elevation: 0,
@@ -39,7 +39,7 @@ class PrimaryButton extends StatelessWidget {
             size: dense ? 13.5 : 16,
             weight: FontWeight.w700,
             // sans() trae color claro por defecto y taparía el foregroundColor.
-            color: disabled ? AppColors.mutedDim : AppColors.ink,
+            color: disabled ? AppColors.mutedDim : AppColors.onPrimary,
           ),
         ),
       ),

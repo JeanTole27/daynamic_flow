@@ -57,12 +57,12 @@ class ManagerHomeScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _StatCard(
-                    background: AppColors.lime,
-                    valueColor: AppColors.ink,
+                    background: AppColors.primary,
+                    valueColor: AppColors.onPrimary,
                     value: '${app.workingNowCount}',
                     valueSuffix: '/${app.teamSize}',
                     label: t['workingNow'],
-                    labelColor: AppColors.ink.withValues(alpha: 0.72),
+                    labelColor: AppColors.onPrimary.withValues(alpha: 0.72),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const LiveScreen()),
                     ),
@@ -91,7 +91,7 @@ class ManagerHomeScreen extends StatelessWidget {
                   '${pending.length}',
                   style: AppTextStyles.mono(
                     size: 10.5,
-                    color: AppColors.lime,
+                    color: AppColors.primaryText,
                   ),
                 ),
               ],

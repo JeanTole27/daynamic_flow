@@ -94,7 +94,7 @@ class MemberDetailScreen extends StatelessWidget {
                           style: AppTextStyles.mono(
                             size: 22,
                             weight: FontWeight.w700,
-                            color: AppColors.lime,
+                            color: AppColors.primaryText,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -235,7 +235,7 @@ class MemberDetailScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
+        backgroundColor: AppColors.background,
         content: Text(
           t.fmt('confirmDeactivate', {'name': emp.name}),
           style: AppTextStyles.sans(size: 14.5),

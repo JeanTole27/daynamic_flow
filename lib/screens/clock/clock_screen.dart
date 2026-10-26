@@ -106,8 +106,8 @@ class _ClockScreenState extends State<ClockScreen> {
                         weight: FontWeight.w700,
                         letterSpacing: -2,
                         color: app.clockedIn
-                            ? AppColors.lime
-                            : const Color(0xFF3A3F36),
+                            ? AppColors.primaryText
+                            : AppColors.inactive,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -184,12 +184,12 @@ class _ClockScreenState extends State<ClockScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: app.clockedIn
                         ? AppColors.red
-                        : AppColors.lime,
+                        : AppColors.primary,
                     foregroundColor: app.clockedIn
-                        ? const Color(0xFF1A0703)
-                        : AppColors.ink,
-                    disabledBackgroundColor: const Color(0xFF1F241C),
-                    disabledForegroundColor: const Color(0xFF5C6357),
+                        ? AppColors.onPrimary
+                        : AppColors.onPrimary,
+                    disabledBackgroundColor: AppColors.cardAlt,
+                    disabledForegroundColor: AppColors.mutedDim,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 30),
                     shape: RoundedRectangleBorder(
@@ -206,10 +206,10 @@ class _ClockScreenState extends State<ClockScreen> {
                       weight: FontWeight.w700,
                       letterSpacing: 0.3,
                       color: !buttonEnabled
-                          ? const Color(0xFF5C6357)
+                          ? AppColors.mutedDim
                           : (app.clockedIn
-                                ? const Color(0xFF1A0703)
-                                : AppColors.ink),
+                                ? AppColors.onPrimary
+                                : AppColors.onPrimary),
                     ),
                   ),
                 ),
@@ -252,14 +252,14 @@ class _EvidencePanel extends StatelessWidget {
               icon: const Icon(
                 Icons.photo_camera_outlined,
                 size: 16,
-                color: AppColors.lime,
+                color: AppColors.primaryText,
               ),
               label: Text(
                 app.uploadingPhoto ? t['uploading'] : t['addEvidence'],
                 style: AppTextStyles.sans(
                   size: 12.5,
                   weight: FontWeight.w600,
-                  color: AppColors.lime,
+                  color: AppColors.primaryText,
                 ),
               ),
             ),
