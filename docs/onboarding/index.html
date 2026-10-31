@@ -1,0 +1,440 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Turnos paso a paso</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: reproductor a dos columnas (teléfono con la pantalla real | explicación del paso), luego el mapa del flujo y las reglas del servidor */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f8f5;
+  --surface-2: #e9efeb;
+  --fg: #14231a;
+  --muted: #5b6a61;
+  --line: rgba(15, 61, 34, .14);
+  --accent: #029a45;
+  --accent-text: #017a36;
+  --accent-soft: #e6f6ec;
+  --lime: #8dc63f;
+  --emp: #1d6fb8;
+  --emp-soft: #e5f0fa;
+  --srv: #6b5bb8;
+  --srv-soft: #efedfa;
+  --phone: #0f1a14;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1511; --surface: #142019; --surface-2: #1b2a21; --fg: #e3ece6; --muted: #93a49a;
+    --line: rgba(200, 230, 210, .14); --accent: #2fc06b; --accent-text: #62d893; --accent-soft: #15301f;
+    --lime: #a6d85f; --emp: #6fb0ec; --emp-soft: #14263a; --srv: #a99bf0; --srv-soft: #221d3b; --phone: #000000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1511; --surface: #142019; --surface-2: #1b2a21; --fg: #e3ece6; --muted: #93a49a;
+  --line: rgba(200, 230, 210, .14); --accent: #2fc06b; --accent-text: #62d893; --accent-soft: #15301f;
+  --lime: #a6d85f; --emp: #6fb0ec; --emp-soft: #14263a; --srv: #a99bf0; --srv-soft: #221d3b; --phone: #000000;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--f-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 32px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Cabecera */
+.eyebrow { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
+h1 { font: 800 clamp(2rem, 5.5vw, 3.4rem)/1.02 var(--f-display); letter-spacing: -.025em; margin: 10px 0 12px; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--accent-text); }
+.lede { max-width: 60ch; color: var(--muted); margin: 0; font-size: 17px; }
+
+/* Selector de rol */
+.roles { display: inline-flex; gap: 4px; padding: 4px; margin-top: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.roles button { font: 600 15px var(--f-body); color: var(--muted); background: none; border: 0; border-radius: 10px; padding: 10px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.roles button .n { font: 500 12px var(--f-mono); opacity: .8; }
+.roles button[aria-selected="true"] { background: var(--accent); color: #fff; }
+.roles button[data-role="empleado"][aria-selected="true"] { background: var(--emp); }
+.roles button:focus-visible, .ctrl:focus-visible, .idx button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Reproductor */
+.player { margin-top: 26px; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 40px; align-items: start; }
+.stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); display: grid; justify-items: center; gap: 14px; }
+.phone { position: relative; width: 100%; max-width: 300px; aspect-ratio: 1080 / 2400; border-radius: 38px; padding: 10px; background: var(--phone);
+  box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 30px 60px -28px rgba(10, 40, 20, .55); }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 29px; overflow: hidden; background: #fff; }
+.screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: translateX(14%) scale(.98);
+  transition: opacity .45s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
+.screen img.on { opacity: 1; transform: none; }
+.screen img.out { opacity: 0; transform: translateX(-14%) scale(.98); }
+.tap { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(2,154,69,.55) 0 30%, rgba(2,154,69,.18) 31% 100%); border: 2px solid rgba(2,154,69,.9); }
+.tap.go { animation: tap 1.6s ease-out .55s 2 both; }
+.role-empleado .tap { background: radial-gradient(circle, rgba(29,111,184,.55) 0 30%, rgba(29,111,184,.18) 31% 100%); border-color: rgba(29,111,184,.9); }
+@keyframes tap { 0% { opacity: 0; transform: scale(.4); } 18% { opacity: 1; transform: scale(1); } 32% { transform: scale(.82); } 55% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1.5); } }
+
+.controls { display: flex; align-items: center; gap: 8px; }
+.ctrl { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.ctrl:hover { background: var(--surface-2); }
+.ctrl:disabled { opacity: .35; cursor: default; }
+.ctrl.play { width: auto; padding: 0 14px; gap: 8px; display: inline-flex; font: 600 14px var(--f-body); }
+.ctrl svg { width: 18px; height: 18px; fill: currentColor; }
+.counter { font: 500 13px var(--f-mono); color: var(--muted); min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Panel del paso */
+.panel { min-width: 0; }
+.bar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin-bottom: 22px; }
+.bar i { height: 4px; border-radius: 4px; background: var(--surface-2); overflow: hidden; position: relative; cursor: pointer; }
+.bar i b { position: absolute; inset: 0; width: 0; background: var(--accent); }
+.role-empleado .bar i b { background: var(--emp); }
+.bar i.done b { width: 100%; }
+.step { animation: rise .45s ease both; }
+@keyframes rise { from { opacity: .001; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.who { display: inline-flex; align-items: center; gap: 8px; font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); }
+.role-empleado .who { color: var(--emp); }
+.step h2 { font: 700 clamp(1.6rem, 3.4vw, 2.2rem)/1.1 var(--f-display); letter-spacing: -.015em; margin: 10px 0 10px; text-wrap: balance; }
+.step .do { font-size: 17px; margin: 0 0 6px; max-width: 58ch; }
+.step .path { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.step .path li { font: 600 13px var(--f-body); padding: 5px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.step .path li + li::before { content: "→ "; color: var(--muted); font-weight: 500; }
+.behind { margin-top: 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--srv-soft); padding: 16px 18px; }
+.behind h3 { margin: 0 0 8px; font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--srv); display: flex; align-items: center; gap: 8px; }
+.behind ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; }
+.behind code, .rules code, .flow code { font: 500 12.5px var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; word-break: break-word; }
+.tip { margin-top: 14px; font-size: 14px; color: var(--muted); display: flex; gap: 8px; }
+.tip b { color: var(--fg); }
+
+.idx { margin-top: 26px; display: grid; gap: 2px; padding: 0; list-style: none; counter-reset: s; }
+.idx button { width: 100%; text-align: left; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; border: 0; background: none; color: var(--muted); font: 500 14.5px var(--f-body); cursor: pointer; }
+.idx button:hover { background: var(--surface); }
+.idx button .k { font: 600 12px var(--f-mono); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); font-variant-numeric: tabular-nums; }
+.idx button[aria-current="step"] { color: var(--fg); background: var(--surface); font-weight: 600; }
+.idx button[aria-current="step"] .k { background: var(--accent); color: #fff; }
+.role-empleado .idx button[aria-current="step"] .k { background: var(--emp); }
+
+/* Secciones de abajo */
+section.more { margin-top: 72px; }
+section.more > h2 { font: 700 clamp(1.5rem, 3vw, 2rem)/1.15 var(--f-display); margin: 8px 0 8px; letter-spacing: -.01em; }
+section.more > p { color: var(--muted); max-width: 64ch; margin: 0 0 22px; }
+
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; counter-reset: f; }
+.node { counter-increment: f; position: relative; padding: 14px 14px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
+.node::before { content: counter(f, decimal-leading-zero); font: 600 12px var(--f-mono); color: var(--muted); }
+.node .lane { float: right; font: 600 10.5px/1 var(--f-body); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 99px; }
+.lane.g { background: var(--accent-soft); color: var(--accent-text); }
+.lane.e { background: var(--emp-soft); color: var(--emp); }
+.lane.s { background: var(--srv-soft); color: var(--srv); }
+.node b { display: block; margin-top: 8px; font-size: 15px; }
+.node span { display: block; font-size: 13.5px; color: var(--muted); margin-top: 4px; }
+
+.rules-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 640px; }
+.rules th { text-align: left; font: 600 12px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface); padding: 12px 14px; }
+.rules td { padding: 12px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+.rules td:first-child { font-weight: 600; width: 22%; }
+.rules td:last-child { color: var(--muted); }
+
+.foot { margin-top: 48px; font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; max-width: 75ch; }
+
+@media (max-width: 760px) {
+  .player { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .stage { position: static; }
+  .phone { max-width: 240px; border-radius: 32px; padding: 8px; }
+  .screen { border-radius: 25px; }
+  .flow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .idx { display: none; }
+}
+@media (max-width: 440px) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .roles { display: flex; }
+  .roles button { flex: 1; justify-content: center; }
+  .roles button .n { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen img, .screen img.on, .screen img.out { transition: opacity .2s; transform: none; }
+  .tap.go { animation: none; opacity: 1; }
+  .step { animation: none; }
+}
+</style>
+
+<div class="wrap" id="app">
+  <header>
+    <div class="eyebrow">Guía de uso · Turnos</div>
+    <h1>Así funciona la app, <em>paso a paso</em></h1>
+    <p class="lede">El gerente registra su empresa, crea sus sitios y turnos, e invita al equipo. Cada empleado entra por esa invitación y ya queda dentro de la empresa correcta. Elige un rol y mira el recorrido con las pantallas reales.</p>
+    <div class="roles" role="tablist" aria-label="Rol">
+      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">12 pasos</span></button>
+      <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">9 pasos</span></button>
+    </div>
+  </header>
+
+  <div class="player" id="player">
+    <div class="stage">
+      <div class="phone"><div class="screen" id="screen"><span class="tap" id="tap"></span></div></div>
+      <div class="controls">
+        <button class="ctrl" id="prev" type="button" aria-label="Paso anterior"><svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg></button>
+        <span class="counter" id="counter">1 / 12</span>
+        <button class="ctrl" id="next" type="button" aria-label="Paso siguiente"><svg viewBox="0 0 24 24"><path d="M8.6 18.6 10 20l8-8-8-8-1.4 1.4 6.6 6.6z"/></svg></button>
+        <button class="ctrl play" id="play" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" id="play-ico"><path d="M8 5v14l11-7z"/></svg><span id="play-label">Reproducir</span></button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="bar" id="bar" aria-hidden="true"></div>
+      <div id="step" aria-live="polite"></div>
+      <ol class="idx" id="idx"></ol>
+    </div>
+  </div>
+
+  <section class="more" id="flujo">
+    <div class="eyebrow">El recorrido completo</div>
+    <h2>Cómo se conectan los dos lados</h2>
+    <p>Lo que hace el gerente prepara lo que verá el empleado. El servidor está en medio y valida cada paso importante; la app solo muestra el resultado.</p>
+    <div class="flow">
+      <div class="node"><span class="lane g">Gerente</span><b>Registra la empresa</b><span>Se crean la empresa, su perfil de gerente y el chat General.</span></div>
+      <div class="node"><span class="lane g">Gerente</span><b>Crea los sitios</b><span>Ubicación tomada en la puerta y un radio de fichaje.</span></div>
+      <div class="node"><span class="lane g">Gerente</span><b>Programa los turnos</b><span>Quién, qué día y en qué horario.</span></div>
+      <div class="node"><span class="lane g">Gerente</span><b>Invita al empleado</b><span>Escribe nombre, correo, cargo y tarifa.</span></div>
+      <div class="node"><span class="lane s">Servidor</span><b>Envía el correo y crea el perfil</b><span>El perfil queda como <i>invitado</i> dentro de la empresa del gerente.</span></div>
+      <div class="node"><span class="lane e">Empleado</span><b>Abre el enlace y crea su contraseña</b><span>El perfil pasa de <i>invitado</i> a <i>activo</i>.</span></div>
+      <div class="node"><span class="lane e">Empleado</span><b>Marca entrada en el sitio</b><span>El servidor mide la distancia al sitio antes de aceptarlo.</span></div>
+      <div class="node"><span class="lane g">Gerente</span><b>Ve quién trabaja y los reportes</b><span>Fichajes, solicitudes y chat llegan en tiempo real.</span></div>
+    </div>
+  </section>
+
+  <section class="more" id="reglas">
+    <div class="eyebrow">La lógica aplicada</div>
+    <h2>Lo que decide el servidor</h2>
+    <p>Las reglas importantes viven en la base de datos de Supabase, no en el celular. Aunque alguien modificara la app, estas reglas se siguen cumpliendo.</p>
+    <div class="rules-wrap">
+      <table class="rules">
+        <thead><tr><th>Regla</th><th>Cómo se aplica</th><th>Qué ve el usuario</th></tr></thead>
+        <tbody>
+          <tr><td>El rol</td><td>Sale del perfil guardado (<code>profiles.role</code>). Elegir “Gerente” o “Empleado” al entrar solo cambia el formulario.</td><td>Un empleado que elige “Gerente” entra igual a su vista de empleado.</td></tr>
+          <tr><td>Una empresa por persona</td><td><code>create_organization()</code> rechaza a quien ya tiene perfil, incluidos los invitados.</td><td>“Ese correo ya está registrado”.</td></tr>
+          <tr><td>Cada uno ve su empresa</td><td>Todas las tablas filtran por <code>current_org_id()</code> con seguridad a nivel de fila (RLS).</td><td>Nunca aparecen datos de otra empresa.</td></tr>
+          <tr><td>Invitaciones</td><td>La función <code>invite-employee</code> comprueba que quien invita es gerente activo y crea el perfil en su empresa.</td><td>El invitado aparece con la etiqueta INVITADO.</td></tr>
+          <tr><td>Sitios</td><td>Solo el gerente puede crearlos o cambiarlos. Radio entre 20 y 1000 m.</td><td>Un empleado no ve la opción Sitios.</td></tr>
+          <tr><td>Fichaje</td><td><code>clock_in()</code> recibe las coordenadas y calcula la distancia al sitio del turno. Rechaza si está fuera del radio, si el GPS tiene más de 100 m de margen o si es una ubicación falsa.</td><td>“Estás a 240 m del sitio. Acércate para marcar”.</td></tr>
+          <tr><td>Turnos que se cruzan</td><td>La base de datos impide dos turnos a la misma hora para la misma persona.</td><td>“Esa persona ya tiene un turno a esa hora”.</td></tr>
+          <tr><td>Solicitudes y cambios</td><td><code>resolve_request()</code>, <code>offer_shift()</code> y <code>claim_swap()</code> validan cada paso; el gerente confirma.</td><td>Notificación a los dos lados.</td></tr>
+          <tr><td>Desactivar</td><td>Un perfil o sitio inactivo pierde el acceso, pero el historial se conserva.</td><td>La persona no puede entrar; el sitio deja de aceptar fichajes.</td></tr>
+          <tr><td>Fotos de evidencia</td><td>Bucket privado <code>work-evidence</code>, en la carpeta empresa/empleado.</td><td>Solo la ven el empleado y su gerente.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">Las pantallas son capturas de la app en un emulador Android. El registro y la elección de rol vienen de la versión conectada a Supabase; el resto usa los datos de ejemplo del modo demo (Restaurante El Roble), así que nombres, horas y montos son de muestra.</p>
+</div>
+
+<script>
+const STEPS = {
+  gerente: [
+    { img: "m01_roles", x: 50, y: 41, title: "Elige “Gerente”",
+      do: "Al abrir la app, toca la tarjeta Gerente para registrar tu empresa.",
+      path: ["Abrir la app", "Gerente"],
+      behind: ["Esta elección solo cambia el formulario que ves. El rol real lo guarda la base de datos."] },
+    { img: "m02_register", x: 50, y: 90.4, title: "Registra tu empresa",
+      do: "Escribe tu nombre, el nombre de la empresa, tu correo y una contraseña de al menos 8 caracteres. Toca Crear cuenta.",
+      path: ["Gerente", "Crear cuenta"],
+      behind: ["Supabase crea tu usuario.", "<code>create_organization()</code> crea en un solo paso la empresa, tu perfil de gerente activo y el chat General.", "Si está activa la confirmación de correo, primero abres el enlace en el celular y la empresa se crea al volver."],
+      tip: "Las siguientes veces usa la pestaña <b>Ya tengo cuenta</b>." },
+    { img: "m10_more", x: 30, y: 12.7, title: "Abre Sitios",
+      do: "En la pestaña Más está la opción Sitios. Solo la ven los gerentes.",
+      path: ["Más", "Sitios"],
+      behind: ["Un sitio es el lugar donde se trabaja y se ficha. Sin al menos uno no se pueden crear turnos."] },
+    { img: "m11_site_new", x: 50, y: 42.5, title: "Crea tu primer sitio",
+      do: "Ponle nombre y dirección. Parado en la puerta, toca Usar mi ubicación actual y ajusta el radio de fichaje.",
+      path: ["Sitios", "Nuevo sitio", "Guardar sitio"],
+      behind: ["Se guardan la latitud, la longitud y el radio (20 a 1000 m).", "Solo un gerente activo puede crear sitios, y solo en su empresa."],
+      tip: "Un radio de <b>100 m</b> funciona bien en la mayoría de locales." },
+    { img: "m12_sites", x: 50, y: 22.5, title: "Tus sitios, listos",
+      do: "La lista muestra cada sitio con su radio. Toca uno para editarlo o desactivarlo.",
+      path: ["Sitios"],
+      behind: ["Un sitio desactivado deja de aceptar fichajes y turnos nuevos, pero conserva el historial."] },
+    { img: "m05_week", x: 50, y: 31.5, title: "Mira la semana",
+      do: "En Turnos ves la semana completa. Los huecos en rojo son turnos sin cubrir.",
+      path: ["Turnos"],
+      behind: ["Los cambios llegan en tiempo real: si alguien toma un turno, la semana se actualiza sola."],
+      tip: "<b>Duplicar semana anterior</b> copia la planificación de la semana pasada." },
+    { img: "m06_newshift", x: 50, y: 93, title: "Asigna un turno",
+      do: "Elige a la persona, el día y el horario. Toca Asignar turno.",
+      path: ["Turnos", "+", "Asignar turno"],
+      behind: ["La base de datos impide que una persona tenga dos turnos a la misma hora."] },
+    { img: "m07_team", x: 86, y: 6.3, title: "Ve a tu equipo",
+      do: "En Equipo están todos con su cargo, horas y estado. Toca + Invitar para sumar a alguien.",
+      path: ["Equipo", "+ Invitar"],
+      behind: ["Cada persona aparece como ACTIVO, INVITADO o INACTIVO."] },
+    { img: "m08_invite", x: 50, y: 93.3, title: "Invita a un empleado",
+      do: "Escribe nombre completo, correo, cargo y tarifa por hora. Toca Enviar invitación.",
+      path: ["Equipo", "+ Invitar", "Enviar invitación"],
+      behind: ["La función <code>invite-employee</code> comprueba que eres gerente activo.", "Envía el correo con el enlace <code>daynamicflow://login-callback</code>.", "Crea el perfil del empleado <b>dentro de tu empresa</b>, en estado invitado."] },
+    { img: "m09_team_invited", x: 83, y: 61, title: "Queda como invitado",
+      do: "La persona aparece en tu equipo con la etiqueta INVITADO hasta que abra el enlace del correo.",
+      path: ["Equipo"],
+      behind: ["Cuando el empleado crea su contraseña, la etiqueta cambia a ACTIVO sola."] },
+    { img: "m04_home", x: 29, y: 36.5, title: "Aprueba solicitudes",
+      do: "En Hoy ves cuántos trabajan ahora, los turnos sin cubrir y las solicitudes pendientes. Aprueba o rechaza con un toque.",
+      path: ["Hoy", "Aprobar"],
+      behind: ["<code>resolve_request()</code> valida la solicitud en el servidor y avisa al empleado."] },
+    { img: "m14_reports", x: 26, y: 66, title: "Revisa horas y costos",
+      do: "En Más → Reportes ves las horas de cada persona y el costo estimado según su tarifa. También Quién trabaja hoy muestra los fichajes en vivo.",
+      path: ["Más", "Reportes"],
+      behind: ["Las horas salen de los fichajes reales; el costo es horas × tarifa por hora."] },
+  ],
+  empleado: [
+    { img: "e01_invite", x: 50, y: 48.8, title: "Abre la invitación",
+      do: "Abre el correo de invitación en tu celular. La app se abre en Únete al equipo con tu nombre y tu cargo. Crea tu contraseña y acepta el uso de la ubicación.",
+      path: ["Correo", "Enlace", "Crear cuenta"],
+      behind: ["El enlace inicia tu sesión en la app.", "<code>accept_invite()</code> cambia tu perfil de invitado a activo.", "Ya perteneces a la empresa de tu gerente: no tienes que elegirla."],
+      tip: "Abre el enlace <b>en el mismo celular</b> donde está instalada la app." },
+    { img: "e02_login", x: 50, y: 64, title: "Las siguientes veces",
+      do: "Elige Empleado y entra con tu correo y contraseña.",
+      path: ["Empleado", "Entrar"],
+      behind: ["La sesión queda guardada; no tendrás que escribirla cada vez."] },
+    { img: "e03_home", x: 50, y: 39, title: "Mira tu próximo turno",
+      do: "En Hoy ves tu próximo turno, tu semana y lo que requiere tu atención.",
+      path: ["Hoy"],
+      behind: ["Solo ves tus turnos y los de tu empresa."] },
+    { img: "e04_clock", x: 50, y: 87, title: "Marca entrada",
+      do: "Al llegar al sitio, toca Marcar entrada. La app indica si estás dentro del sitio.",
+      path: ["Hoy", "Marcar entrada"],
+      behind: ["<code>clock_in()</code> recibe tus coordenadas y mide la distancia al sitio del turno.", "Rechaza si estás fuera del radio, si el GPS es poco preciso (más de 100 m) o si detecta ubicación falsa.", "La app nunca decide sola si estás dentro."] },
+    { img: "e05_clocked", x: 80.5, y: 50.6, title: "Trabaja y deja evidencia",
+      do: "Mientras estás en turno corre el contador. Puedes tomar fotos del trabajo y, al terminar, marcar salida.",
+      path: ["Tomar foto", "Marcar salida"],
+      behind: ["Las fotos van a un almacenamiento privado: solo las ven tú y tu gerente.", "La salida también registra la ubicación."] },
+    { img: "e06_time", x: 83, y: 21, title: "Revisa tu horario",
+      do: "En Tiempo ves tus turnos de la semana y el total de horas. Si no puedes ir, toca Ofrecer.",
+      path: ["Tiempo", "Horario", "Ofrecer"],
+      behind: ["<code>offer_shift()</code> deja el turno disponible para tus compañeros."] },
+    { img: "e07_swaps", x: 78, y: 30, title: "Toma turnos libres",
+      do: "En Cambios ves los turnos que otros liberaron. Toca Tomarlo y tu gerente confirma.",
+      path: ["Tiempo", "Cambios", "Tomarlo"],
+      behind: ["<code>claim_swap()</code> valida que no te cruces con otro turno. El cambio queda pendiente hasta que el gerente lo aprueba."] },
+    { img: "e07b_avail", x: 85, y: 42, title: "Indica tu disponibilidad",
+      do: "En Disponible marcas qué días y horas puedes trabajar. Tu gerente lo ve al armar el horario.",
+      path: ["Tiempo", "Disponible", "Guardar"],
+      behind: ["Se guarda en tu cuenta. Solo la ven tú y tu gerente."] },
+    { img: "e09_chat", x: 90, y: 92, title: "Habla con el equipo",
+      do: "El chat General incluye a toda la empresa. También puedes escribir a una persona.",
+      path: ["Chat", "General"],
+      behind: ["Los mensajes llegan en tiempo real a todos los celulares del equipo."] },
+  ],
+};
+
+const DURATION = 6000;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = (id) => document.getElementById(id);
+const screen = $("screen"), tap = $("tap");
+let role = "gerente", i = 0, playing = false, timer = null, startedAt = 0, raf = null;
+
+// Una imagen por paso, cargadas de antemano para que el cambio sea inmediato.
+const imgs = {};
+for (const r of Object.keys(STEPS)) for (const s of STEPS[r]) {
+  if (imgs[s.img]) continue;
+  const el = new Image();
+  el.src = `screens/${s.img}.webp`;
+  el.alt = "";
+  el.decoding = "async";
+  screen.insertBefore(el, tap);
+  imgs[s.img] = el;
+}
+
+function render(dir = 1) {
+  const steps = STEPS[role], s = steps[i];
+  document.getElementById("app").className = "wrap role-" + role;
+
+  for (const [k, el] of Object.entries(imgs)) {
+    if (k === s.img) { el.classList.remove("out"); el.classList.add("on"); el.alt = s.title; }
+    else if (el.classList.contains("on")) { el.classList.remove("on"); el.classList.add("out"); setTimeout(() => el.classList.remove("out"), 600); }
+  }
+  tap.style.left = s.x + "%"; tap.style.top = s.y + "%";
+  tap.classList.remove("go"); void tap.offsetWidth; tap.classList.add("go");
+
+  const who = role === "gerente" ? "Gerente" : "Empleado";
+  $("step").innerHTML = `<div class="step">
+    <div class="who">Paso ${i + 1} de ${steps.length} · ${who}</div>
+    <h2>${s.title}</h2>
+    <p class="do">${s.do}</p>
+    <ul class="path">${s.path.map((p) => `<li>${p}</li>`).join("")}</ul>
+    <div class="behind"><h3>Lo que pasa por detrás</h3><ul>${s.behind.map((b) => `<li>${b}</li>`).join("")}</ul></div>
+    ${s.tip ? `<p class="tip"><b>Consejo:</b> <span>${s.tip}</span></p>` : ""}
+  </div>`;
+
+  $("counter").textContent = `${i + 1} / ${steps.length}`;
+  $("prev").disabled = i === 0;
+  $("next").disabled = i === steps.length - 1 && !playing;
+  $("bar").innerHTML = steps.map((_, k) => `<i data-k="${k}" class="${k < i ? "done" : ""}"><b></b></i>`).join("");
+  $("idx").innerHTML = steps.map((st, k) => `<li><button type="button" data-k="${k}" ${k === i ? 'aria-current="step"' : ""}><span class="k">${k + 1}</span>${st.title}</button></li>`).join("");
+  if (playing) armTimer();
+}
+
+function go(k) {
+  const n = STEPS[role].length;
+  i = Math.max(0, Math.min(n - 1, k));
+  render();
+}
+
+function armTimer() {
+  clearTimeout(timer); cancelAnimationFrame(raf);
+  startedAt = performance.now();
+  const fill = $("bar").children[i]?.firstElementChild;
+  const tick = (t) => {
+    if (!playing || !fill) return;
+    fill.style.width = Math.min(100, ((t - startedAt) / DURATION) * 100) + "%";
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  timer = setTimeout(() => {
+    if (i < STEPS[role].length - 1) go(i + 1);
+    else setPlaying(false);
+  }, DURATION);
+}
+
+function setPlaying(on) {
+  playing = on;
+  $("play").setAttribute("aria-pressed", String(on));
+  $("play-label").textContent = on ? "Pausa" : "Reproducir";
+  $("play-ico").innerHTML = on ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+  if (on) { if (i === STEPS[role].length - 1) i = 0; render(); }
+  else { clearTimeout(timer); cancelAnimationFrame(raf); render(); }
+}
+
+function setRole(r, keepHash) {
+  role = r; i = 0;
+  for (const b of document.querySelectorAll(".roles button")) b.setAttribute("aria-selected", String(b.dataset.role === r));
+  if (!keepHash) try { history.replaceState(null, "", "#" + r); } catch (e) {}
+  render();
+}
+
+document.querySelector(".roles").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-role]");
+  if (b && b.dataset.role !== role) setRole(b.dataset.role);
+});
+$("prev").onclick = () => go(i - 1);
+$("next").onclick = () => go(i + 1);
+$("play").onclick = () => setPlaying(!playing);
+$("idx").addEventListener("click", (e) => { const b = e.target.closest("button[data-k]"); if (b) go(+b.dataset.k); });
+$("bar").addEventListener("click", (e) => { const b = e.target.closest("i[data-k]"); if (b) go(+b.dataset.k); });
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") go(i + 1);
+  if (e.key === "ArrowLeft") go(i - 1);
+});
+// Deslizar sobre el teléfono para cambiar de paso.
+let sx = null;
+screen.addEventListener("touchstart", (e) => { sx = e.touches[0].clientX; }, { passive: true });
+screen.addEventListener("touchend", (e) => {
+  if (sx == null) return;
+  const dx = e.changedTouches[0].clientX - sx; sx = null;
+  if (Math.abs(dx) > 40) go(i + (dx < 0 ? 1 : -1));
+});
+
+const initial = location.hash.replace("#", "");
+setRole(STEPS[initial] ? initial : "gerente", true);
+if (!reduced) setPlaying(true);
+</script>

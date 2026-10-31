@@ -60,7 +60,12 @@ class Site {
     required this.longitude,
     required this.radiusMeters,
     this.address,
+    this.active = true,
   });
+
+  /// Radio de fichaje permitido por la base de datos, en metros.
+  static const minRadius = 20;
+  static const maxRadius = 1000;
 
   final String id;
   final String name;
@@ -68,6 +73,10 @@ class Site {
   final double latitude;
   final double longitude;
   final int radiusMeters;
+
+  /// Un sitio inactivo no acepta fichajes ni turnos nuevos, pero se
+  /// conserva para el historial.
+  final bool active;
 }
 
 /// Turno real con fecha. `employeeId == null` es un turno sin cubrir.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../i18n/app_lang.dart';
 import '../../state/app_scope.dart';
+import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/chip_button.dart';
@@ -10,6 +11,7 @@ import '../live/live_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reports/reports_screen.dart';
+import '../sites/sites_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -20,6 +22,8 @@ class MoreScreen extends StatelessWidget {
     final t = app.strings;
 
     final items = <(String label, WidgetBuilder builder)>[
+      if (app.role == UserRole.manager)
+        (t['sites'], (_) => const SitesScreen()),
       (t['reports'], (_) => const ReportsScreen()),
       (t['whoWorks'], (_) => const LiveScreen()),
       (t['notifications'], (_) => const NotificationsScreen()),

@@ -16,6 +16,12 @@ class Env {
     'SUPABASE_PUBLISHABLE_KEY',
   );
 
+  /// Deep link al que vuelven los correos de Supabase (invitación y
+  /// confirmación de registro). Debe estar en Authentication → URL
+  /// Configuration → Redirect URLs, y coincide con el AndroidManifest y el
+  /// Info.plist.
+  static const authRedirectUrl = 'daynamicflow://login-callback';
+
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
 }

@@ -1,0 +1,355 @@
+<title>Checklist Daynamic Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una columna de lectura; bloque "Siguientes pasos" arriba; barra de progreso fija; secciones en orden de ejecución */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f8f5;
+  --surface-2: #e9efeb;
+  --fg: #14231a;
+  --muted: #5b6a61;
+  --line: rgba(15, 61, 34, .14);
+  --accent: #029a45;
+  --accent-text: #017a36;
+  --accent-soft: #e6f6ec;
+  --lime: #8dc63f;
+  --warn: #a86a00;
+  --warn-soft: #fbf1df;
+  --code-bg: #14231a;
+  --code-fg: #e6f6ec;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1712; --surface: #15211a; --surface-2: #1c2b22; --fg: #e3ece6; --muted: #93a49a;
+    --line: rgba(200, 230, 210, .14); --accent: #2fc06b; --accent-text: #5fd690; --accent-soft: #163626;
+    --lime: #a6d85f; --warn: #e3a94a; --warn-soft: #33270f; --code-bg: #08100b; --code-fg: #cfe9d9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1712; --surface: #15211a; --surface-2: #1c2b22; --fg: #e3ece6; --muted: #93a49a;
+  --line: rgba(200, 230, 210, .14); --accent: #2fc06b; --accent-text: #5fd690; --accent-soft: #163626;
+  --lime: #a6d85f; --warn: #e3a94a; --warn-soft: #33270f; --code-bg: #08100b; --code-fg: #cfe9d9;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header h1 { font: 700 clamp(1.7rem, 4.5vw, 2.3rem)/1.1 var(--f-display); margin: 0 0 8px; text-wrap: balance; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; font: 500 12px/1 var(--f-mono); }
+.meta span { background: var(--surface); border: 1px solid var(--line); padding: 6px 9px; border-radius: 6px; color: var(--muted); }
+
+.status { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.stat b { display: block; font: 600 13px var(--f-body); }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.stat.ok b::before { content: "● "; color: var(--accent); }
+.stat.no b::before { content: "● "; color: var(--warn); }
+
+.next { margin-top: 26px; border: 1.5px solid var(--accent); border-radius: 14px; padding: 18px 18px 8px; background: var(--accent-soft); }
+.next h2 { font: 700 1.3rem/1.2 var(--f-display); margin: 0 0 2px; }
+.next > p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+.next ol { margin: 0; padding: 0; list-style: none; counter-reset: n; }
+.next li { counter-increment: n; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.next li::before { content: counter(n); font: 700 14px/30px var(--f-display); width: 30px; height: 30px; border-radius: 50%; text-align: center; background: var(--accent); color: var(--bg); }
+.next li b { display: block; }
+.next li span { color: var(--muted); font-size: 14px; }
+.next li a { color: var(--accent-text); font-weight: 600; }
+
+.progress { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  margin: 26px 0 8px; padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.progress-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.progress strong { font: 600 14px var(--f-body); min-width: 0; }
+.progress .count { font: 500 13px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--lime)); border-radius: 99px; transition: width .3s; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); }
+.btn-reset { font: 500 12.5px var(--f-body); color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
+.btn-reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+section { margin-top: 34px; scroll-margin-top: 110px; }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  border-bottom: 2px solid var(--fg); padding-bottom: 6px; margin-bottom: 4px; }
+.sec-head h2 { font: 700 1.25rem/1.2 var(--f-display); margin: 0; }
+.sec-head h2 small { font: 500 12px var(--f-mono); color: var(--accent-text); margin-right: 8px; letter-spacing: .04em; }
+.sec-head .count { font: 500 12.5px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.sec-intro { color: var(--muted); font-size: 14px; margin: 8px 0 4px; max-width: 64ch; }
+
+ol.items { list-style: none; margin: 0; padding: 0; }
+li.item { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 4px 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+li.item input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+li.item input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.item-body { min-width: 0; }
+.item label { font-weight: 600; cursor: pointer; display: inline; }
+li.item.checked label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+.tag { display: inline-block; vertical-align: 2px; margin-left: 8px; font: 600 10.5px/1 var(--f-body); letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 7px; border-radius: 99px; white-space: nowrap; }
+.tag.done { background: var(--accent-soft); color: var(--accent-text); }
+.tag.todo { background: var(--warn-soft); color: var(--warn); }
+.tag.opt { background: var(--surface-2); color: var(--muted); }
+.detail { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.detail p { margin: 4px 0; }
+.detail b { color: var(--fg); font-weight: 600; }
+.detail code { font: 500 12.5px var(--f-mono); background: var(--surface); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; color: var(--fg); word-break: break-word; }
+.snippet { margin-top: 8px; position: relative; background: var(--code-bg); color: var(--code-fg); border-radius: 8px; }
+.snippet pre { margin: 0; padding: 12px 14px; padding-right: 76px; overflow-x: auto; font: 12.5px/1.6 var(--f-mono); }
+.copy { position: absolute; top: 8px; right: 8px; font: 600 11.5px var(--f-body); background: rgba(255,255,255,.1); color: var(--code-fg);
+  border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+.copy:hover { background: rgba(255,255,255,.18); }
+.copy:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.note { margin-top: 30px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; font-size: 14px; color: var(--muted); }
+.note b { color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Checklist de pruebas · Daynamic Flow en Android</h1>
+    <p>Qué está listo, qué falta y en qué orden probar la app. Las casillas se guardan en este navegador.</p>
+    <div class="meta">
+      <span>Proyecto Supabase fxlngamhmsqwdopkvduw</span>
+      <span>Estado revisado el 31 oct 2026</span>
+    </div>
+  </header>
+
+  <div class="status" aria-label="Estado actual">
+    <div class="stat ok"><b>Base de datos</b><span>2 de 2 migraciones aplicadas</span></div>
+    <div class="stat no"><b>Datos</b><span>0 usuarios, 0 empresas, 0 sitios</span></div>
+    <div class="stat ok"><b>Emulador</b><span>Medium_Phone con la versión nueva</span></div>
+    <div class="stat no"><b>Android SDK</b><span>Faltan Command-line Tools</span></div>
+  </div>
+
+  <div class="next">
+    <h2>Siguientes pasos</h2>
+    <p>Hazlos en este orden. Con esto ya puedes probar la app de punta a punta.</p>
+    <ol>
+      <li><div><b>Revisa los ajustes de registro en Supabase</b><span><b>Allow new users to sign up</b> activado. Desactiva <b>Confirm email</b> si quieres entrar sin abrir el correo. <a href="#backend">Ver paso</a></span></div></li>
+      <li><div><b>Registra tu gerente desde la app</b><span>En el emulador: Gerente → Crear cuenta. <a href="#manager">Ver paso</a></span></div></li>
+      <li><div><b>Crea el primer sitio desde la app</b><span>Más → Sitios → Nuevo sitio, idealmente parado en la puerta. <a href="#site">Ver paso</a></span></div></li>
+      <li><div><b>Crea un turno e invita a un empleado</b><span>Usa un correo al que tengas acceso. <a href="#manager">Ver paso</a></span></div></li>
+      <li><div><b>Acepta la invitación en otro dispositivo y ficha</b><span>Abre el enlace en el celular o en el segundo emulador. <a href="#employee">Ver paso</a></span></div></li>
+    </ol>
+  </div>
+
+  <div class="progress" aria-live="polite">
+    <div class="progress-row">
+      <strong id="progress-label">Progreso</strong>
+      <span class="count" id="progress-count"></span>
+    </div>
+    <div class="bar"><i id="progress-bar"></i></div>
+    <div class="progress-row">
+      <div class="legend">
+        <span><span class="tag done" style="margin:0">Hecho</span> verificado por Claude</span>
+        <span><span class="tag todo" style="margin:0">Falta</span> pendiente y necesario</span>
+        <span><span class="tag opt" style="margin:0">Opcional</span> recomendado</span>
+      </div>
+      <button class="btn-reset" id="reset" type="button">Reiniciar casillas</button>
+    </div>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="note">
+    <b>Si algo falla:</b> copia el error de la consola <b>Run</b> de Android Studio (o de <code>flutter run</code>) y pégalo en el chat. Para errores de datos, revisa también <b>Supabase → Logs → API</b>.
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  {
+    key: "backend", title: "Supabase",
+    intro: "El backend está listo. La base de datos sigue vacía hasta que registres el primer gerente desde la app.",
+    items: [
+      { id: "sb-schema", status: "done", title: "Esquema aplicado (tablas, RLS, bucket, Realtime)",
+        detail: "<p>14 tablas con RLS, funciones del servidor, bucket privado <code>work-evidence</code> y Realtime en turnos, fichajes, chat y notificaciones.</p>" },
+      { id: "sb-signup-fn", status: "done", title: "Registro de gerentes en la base de datos",
+        detail: "<p>La función <code>create_organization</code> crea la empresa, el gerente activo y el chat General. Probada sin dejar datos guardados.</p>" },
+      { id: "sb-fn", status: "done", title: "Función de invitaciones desplegada",
+        detail: "<p><code>invite-employee</code> activa, con el enlace de retorno <code>daynamicflow://login-callback</code>.</p>" },
+      { id: "sb-redirect", status: "done", title: "URL de retorno de los correos añadida",
+        detail: "<p><code>daynamicflow://login-callback</code> está en <b>Authentication → URL Configuration → Redirect URLs</b>.</p>" },
+      { id: "sb-signup", status: "todo", title: "Comprobar que el registro de usuarios está activado",
+        detail: "<p><b>Authentication → Sign In / Providers</b> → <b>Allow new users to sign up</b> debe estar <b>activado</b>. Si está apagado, el registro del gerente falla con “El registro está desactivado en el servidor”.</p>" },
+      { id: "sb-confirm", status: "opt", title: "Decidir la confirmación de correo",
+        detail: "<p>En la misma pantalla, <b>Confirm email</b>. <b>Desactivado:</b> el gerente entra al registrarse; es lo más rápido para probar. <b>Activado:</b> la app muestra “Revisa tu correo” y hay que abrir el enlace en el mismo celular.</p>" },
+    ],
+  },
+  {
+    key: "pc", title: "Tu PC y Android Studio",
+    intro: "La app compila sin errores y pasan los 19 tests.",
+    items: [
+      { id: "pc-env", status: "done", title: "env.json con URL y clave publishable",
+        detail: "<p>En la raíz del proyecto e ignorado por git.</p>" },
+      { id: "pc-runcfg", status: "done", title: "Configuración Run de Android Studio usa env.json",
+        detail: "<p>La configuración <code>main.dart</code> pasa <code>--dart-define-from-file=env.json</code>. Sin eso la app arranca en modo demo.</p>" },
+      { id: "pc-cmdline", status: "todo", title: "Instalar Android SDK Command-line Tools",
+        detail: "<p>Android Studio → <b>Settings → Languages &amp; Frameworks → Android SDK → SDK Tools</b> → marca <b>Android SDK Command-line Tools (latest)</b> → Apply. No impide ejecutar la app, pero <code>flutter doctor</code> lo marca.</p>" },
+      { id: "pc-licenses", status: "todo", title: "Aceptar las licencias del SDK",
+        detail: "<p>Después del paso anterior. Responde <code>y</code> a todo.</p>",
+        code: "flutter doctor --android-licenses" },
+    ],
+  },
+  {
+    key: "device", title: "Dispositivos",
+    intro: "Para probar invitaciones y chat necesitas dos: uno para el gerente y otro para el empleado.",
+    items: [
+      { id: "dv-medium", status: "done", title: "Emulador Medium_Phone_API_36.0 con la versión nueva",
+        detail: "<p>Arrancado y con la app instalada. Muestra la elección de rol al abrir.</p>" },
+      { id: "dv-pixel", status: "todo", title: "Segundo dispositivo: reparar el Pixel_10_Pro_XL o usar tu celular",
+        detail: "<p>El Pixel no arranca por datos del sistema dañados: <b>Device Manager</b> → ⋮ → <b>Wipe Data</b> → <b>Cold Boot Now</b>. O conecta tu celular (siguientes pasos).</p>" },
+      { id: "dv-usb", status: "opt", title: "Celular físico: Depuración USB",
+        detail: "<p><b>Ajustes → Acerca del teléfono</b> → toca 7 veces <b>Número de compilación</b>. Luego <b>Opciones de desarrollador → Depuración USB</b>, conecta el cable y acepta el aviso. Comprueba que aparece con:</p>",
+        code: "flutter devices" },
+      { id: "dv-gps", status: "todo", title: "Simular la ubicación en el emulador",
+        detail: "<p>Barra del emulador → <b>⋯ Extended controls → Location</b> → coordenadas del sitio → <b>Set Location</b>. Sin esto no se puede probar el fichaje.</p>" },
+    ],
+  },
+  {
+    key: "manager", title: "Gerente",
+    intro: "El gerente se registra desde la app y queda como dueño de su empresa.",
+    items: [
+      { id: "mg-role", status: "done", title: "La app abre con la elección de rol",
+        detail: "<p>Muestra <b>¿Cómo vas a usar la app?</b> con Gerente y Empleado. Si dice <b>Modo demo</b>, falta <code>env.json</code>.</p>" },
+      { id: "mg-register", status: "todo", title: "Registrar el gerente y su empresa",
+        detail: "<p><b>Gerente → Crear cuenta</b>: nombre, empresa, correo y contraseña de 8 o más caracteres. Debe entrar al inicio del gerente (o mostrar “Revisa tu correo”). En Supabase aparecen la fila en <code>organizations</code> y el perfil con <code>role = manager</code>.</p>" },
+      { id: "mg-login", status: "todo", title: "Cerrar sesión y volver a entrar",
+        detail: "<p><b>Gerente → Ya tengo cuenta</b> con el mismo correo y contraseña.</p>" },
+    ],
+  },
+  {
+    key: "site", title: "Primer sitio de trabajo",
+    intro: "Como gerente, desde la app. Sin sitio no se pueden crear turnos ni fichar.",
+    items: [
+      { id: "st-app", status: "todo", title: "Crear el sitio desde la app",
+        detail: "<p><b>Más → Sitios → Nuevo sitio</b>. Escribe el nombre y toca <b>Usar mi ubicación actual</b> estando en la puerta del sitio (en el emulador, la ubicación simulada). Ajusta el <b>radio de fichaje</b> (20 a 1000 m) y toca <b>Guardar sitio</b>.</p>" },
+      { id: "st-edit", status: "opt", title: "Editar o desactivar un sitio",
+        detail: "<p>Toca el sitio en la lista. Un sitio desactivado no acepta fichajes ni turnos nuevos y queda al final de la lista; se puede reactivar.</p>" },
+    ],
+  },
+  {
+    key: "team", title: "Turnos e invitaciones",
+    intro: "Como gerente, en el primer dispositivo.",
+    items: [
+      { id: "tm-invite", status: "todo", title: "Invitar a un empleado",
+        detail: "<p><b>Equipo → Invitar</b> con un correo real al que tengas acceso. Debe aparecer como <b>invitado</b>. El plan gratuito de Supabase envía pocos correos por hora.</p>" },
+      { id: "tm-shift", status: "todo", title: "Crear un turno de hoy para el empleado",
+        detail: "<p>En la semana, crea un turno que esté en curso en el sitio creado, para poder fichar.</p>" },
+    ],
+  },
+  {
+    key: "employee", title: "Empleado",
+    intro: "En el segundo dispositivo, con el gerente abierto en el primero.",
+    items: [
+      { id: "em-link", status: "todo", title: "Abrir el enlace de la invitación en el dispositivo",
+        detail: "<p>Abre el correo <b>en el mismo dispositivo donde está la app</b>. Debe abrir Daynamic Flow en la pantalla <b>Únete al equipo</b>, con la app abierta o cerrada.</p>" },
+      { id: "em-pass", status: "todo", title: "Crear la contraseña y entrar",
+        detail: "<p>Acepta el uso de la ubicación. El perfil pasa a <b>activo</b> y se ve el turno. Las siguientes veces entra con <b>Empleado</b>, correo y contraseña.</p>" },
+      { id: "em-clockin", status: "todo", title: "Fichar entrada dentro del sitio",
+        detail: "<p>Dentro del radio se acepta, y el gerente lo ve en <b>En vivo</b>.</p>" },
+      { id: "em-far", status: "todo", title: "Intentar fichar lejos del sitio",
+        detail: "<p>Cambia la ubicación simulada. El servidor debe rechazarlo con la distancia al sitio.</p>" },
+      { id: "em-photo", status: "todo", title: "Subir foto de evidencia y fichar salida",
+        detail: "<p>La foto queda en <b>Storage → work-evidence</b> y las horas en <b>Mi tiempo</b>.</p>" },
+      { id: "em-request", status: "todo", title: "Pedir un día libre y que el gerente lo apruebe",
+        detail: "<p>El gerente recibe la notificación; al aprobar, el empleado ve el cambio.</p>" },
+      { id: "em-chat", status: "todo", title: "Chat en tiempo real",
+        detail: "<p>Un mensaje en el chat General debe llegar al otro dispositivo sin recargar.</p>" },
+    ],
+  },
+  {
+    key: "close", title: "Cierre",
+    intro: "",
+    items: [
+      { id: "cl-reports", status: "todo", title: "Revisar reportes con datos reales",
+        detail: "<p>Como gerente, en <b>Reportes</b> salen las horas y el costo del fichaje de prueba.</p>" },
+      { id: "cl-release", status: "opt", title: "Probar una build release",
+        detail: "<p>El APK queda en <code>build/app/outputs/flutter-apk/</code>.</p>",
+        code: "flutter build apk --release --dart-define-from-file=env.json" },
+    ],
+  },
+];
+
+const STORE_KEY = "daynamic-flow-checklist-v2";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch (e) { state = {}; }
+const isChecked = (it) => (it.id in state ? state[it.id] : it.status === "done");
+const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} };
+
+const TAGS = { done: ["done", "Hecho"], todo: ["todo", "Falta"], opt: ["opt", "Opcional"] };
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function render() {
+  document.getElementById("sections").innerHTML = SECTIONS.map((sec, si) => `
+    <section id="${sec.key}">
+      <div class="sec-head">
+        <h2><small>${String(si + 1).padStart(2, "0")}</small>${sec.title}</h2>
+        <span class="count" data-sec="${sec.key}"></span>
+      </div>
+      ${sec.intro ? `<p class="sec-intro">${sec.intro}</p>` : ""}
+      <ol class="items">
+        ${sec.items.map((it) => {
+          const [cls, label] = TAGS[it.status];
+          return `<li class="item" data-id="${it.id}">
+            <input type="checkbox" id="cb-${it.id}" ${isChecked(it) ? "checked" : ""}>
+            <div class="item-body">
+              <label for="cb-${it.id}">${it.title}</label><span class="tag ${cls}">${label}</span>
+              <div class="detail">${it.detail}</div>
+              ${it.code ? `<div class="snippet"><pre><code>${esc(it.code)}</code></pre><button class="copy" type="button" data-copy="${it.id}">Copiar</button></div>` : ""}
+            </div>
+          </li>`;
+        }).join("")}
+      </ol>
+    </section>`).join("");
+  update();
+}
+
+function update() {
+  let total = 0, done = 0;
+  SECTIONS.forEach((sec) => {
+    const d = sec.items.filter(isChecked).length;
+    total += sec.items.length; done += d;
+    const el = document.querySelector(`[data-sec="${sec.key}"]`);
+    if (el) el.textContent = `${d}/${sec.items.length}`;
+    sec.items.forEach((it) => {
+      const li = document.querySelector(`li[data-id="${it.id}"]`);
+      if (li) li.classList.toggle("checked", isChecked(it));
+    });
+  });
+  document.getElementById("progress-count").textContent = `${done} de ${total} pasos`;
+  document.getElementById("progress-bar").style.width = `${Math.round((done / total) * 100)}%`;
+  const next = SECTIONS.flatMap((s) => s.items).find((it) => !isChecked(it) && it.status !== "opt");
+  document.getElementById("progress-label").textContent = next ? `Siguiente: ${next.title}` : "Todo listo";
+}
+
+document.addEventListener("change", (e) => {
+  if (!e.target.matches('input[type="checkbox"]')) return;
+  state[e.target.id.slice(3)] = e.target.checked;
+  save(); update();
+});
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".copy");
+  if (btn) {
+    const it = SECTIONS.flatMap((s) => s.items).find((x) => x.id === btn.dataset.copy);
+    const ok = () => { btn.textContent = "Copiado"; setTimeout(() => (btn.textContent = "Copiar"), 1500); };
+    const fallback = () => {
+      const range = document.createRange();
+      range.selectNodeContents(btn.previousElementSibling);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = "Selecciona y copia";
+    };
+    try { navigator.clipboard.writeText(it.code).then(ok, fallback); } catch (err) { fallback(); }
+  }
+  if (e.target.id === "reset") { state = {}; save(); render(); }
+});
+
+render();
+</script>

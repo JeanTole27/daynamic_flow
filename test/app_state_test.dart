@@ -166,5 +166,59 @@ void main() {
       expect(target.status, EmployeeStatus.inactive);
       expect(app.employees[2].status, untouched);
     });
+
+    test('saveSite creates a site and rejects bad input', () async {
+      final app = AppState();
+      final before = app.sites.length;
+
+      final ok = await app.saveSite(
+        name: '  Bodega Norte ',
+        address: '',
+        latitude: 4.7,
+        longitude: -74.05,
+        radiusMeters: 150,
+      );
+
+      expect(ok, isTrue);
+      expect(app.sites.length, before + 1);
+      final created = app.sites.firstWhere((s) => s.name == 'Bodega Norte');
+      expect(created.address, isNull);
+      expect(created.radiusMeters, 150);
+
+      expect(
+        await app.saveSite(
+          name: 'Sin coordenadas',
+          address: '',
+          latitude: null,
+          longitude: -74,
+          radiusMeters: 100,
+        ),
+        isFalse,
+      );
+      expect(
+        await app.saveSite(
+          name: 'Radio chico',
+          address: '',
+          latitude: 4.7,
+          longitude: -74,
+          radiusMeters: 5,
+        ),
+        isFalse,
+      );
+      expect(app.sites.length, before + 1);
+    });
+
+    test('setSiteActive hides the site from scheduling but keeps it', () async {
+      final app = AppState();
+      final site = app.sites.first;
+
+      await app.setSiteActive(site.id, false);
+
+      expect(app.sites.any((s) => s.id == site.id), isFalse);
+      expect(app.siteById(site.id)?.active, isFalse);
+
+      await app.setSiteActive(site.id, true);
+      expect(app.sites.any((s) => s.id == site.id), isTrue);
+    });
   });
 }

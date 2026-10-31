@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/env.dart';
 import '../../state/models.dart';
 import '../auth_service.dart';
 import '../backend.dart';
@@ -113,6 +114,10 @@ Future<T> guard<T>(Future<T> Function() call) async {
       'invalid_credentials' => 'invalid_credentials',
       'weak_password' => 'weak_password',
       'same_password' => 'weak_password',
+      'user_already_exists' || 'email_exists' => 'already_registered',
+      'email_address_invalid' => 'invalid_email',
+      'email_not_confirmed' => 'email_not_confirmed',
+      'signup_disabled' => 'signup_disabled',
       'over_request_rate_limit' => 'rate_limited',
       _ => 'auth_error',
     });
@@ -171,12 +176,34 @@ class _SupabaseAuth implements AuthService {
   final _Ctx ctx;
   GoTrueClient get _auth => ctx.client.auth;
 
+  Future<Map<String, dynamic>?> _fetchProfile() => ctx.client
+      .from('profiles')
+      .select('*, organizations(name)')
+      .eq('id', ctx.uid)
+      .maybeSingle();
+
+  /// Un gerente que se registró con confirmación de correo vuelve sin
+  /// perfil: su organización se crea ahora con los datos que dejó en el
+  /// registro. Devuelve false si no hay registro pendiente.
+  Future<bool> _createPendingOrganization() async {
+    final meta = _auth.currentUser?.userMetadata;
+    final orgName = meta?['org_name'];
+    if (orgName is! String || orgName.trim().isEmpty) return false;
+    await ctx.client.rpc(
+      'create_organization',
+      params: {
+        'p_org_name': orgName,
+        'p_full_name': meta?['full_name'] as String? ?? '',
+      },
+    );
+    return true;
+  }
+
   Future<SessionUser> _loadSessionUser() => guard(() async {
-    final row = await ctx.client
-        .from('profiles')
-        .select('*, organizations(name)')
-        .eq('id', ctx.uid)
-        .maybeSingle();
+    var row = await _fetchProfile();
+    if (row == null && await _createPendingOrganization()) {
+      row = await _fetchProfile();
+    }
     if (row == null) throw const AppException('no_profile');
     final profile = _employee(row);
     if (profile.status == EmployeeStatus.inactive) {
@@ -219,6 +246,44 @@ class _SupabaseAuth implements AuthService {
   }
 
   @override
+  Future<SessionUser?> signUpManager({
+    required String fullName,
+    required String orgName,
+    required String email,
+    required String password,
+  }) async {
+    final res = await guard(
+      () => _auth.signUp(
+        email: email.trim(),
+        password: password,
+        emailRedirectTo: Env.authRedirectUrl,
+        data: {'full_name': fullName.trim(), 'org_name': orgName.trim()},
+      ),
+    );
+    // Con confirmación de correo activa, Supabase no revela si el correo ya
+    // existía: devuelve un usuario sin identidades en lugar de un error.
+    if (res.user?.identities?.isEmpty ?? false) {
+      throw const AppException('already_registered');
+    }
+    if (res.session == null) return null;
+    ctx.clear();
+    try {
+      return await _loadSessionUser();
+    } on AppException {
+      await signOut();
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<void> get onSignedIn => _auth.onAuthStateChange
+      .where((s) => s.event == AuthChangeEvent.signedIn)
+      .map((_) {})
+      // Un enlace caducado o mal formado llega como error del stream; la
+      // pantalla de invitación ya explica qué hacer sin sesión.
+      .handleError((_) {});
+
+  @override
   Future<SessionUser> acceptInvite({required String password}) async {
     if (_auth.currentSession == null) {
       throw const AppException('invite_link_required');
@@ -253,11 +318,7 @@ class _SupabaseTeam implements TeamRepository {
 
   @override
   Future<List<Site>> fetchSites() => guard(() async {
-    final rows = await ctx.client
-        .from('sites')
-        .select()
-        .eq('active', true)
-        .order('name');
+    final rows = await ctx.client.from('sites').select().order('name');
     return [
       for (final r in rows)
         Site(
@@ -267,8 +328,36 @@ class _SupabaseTeam implements TeamRepository {
           latitude: (r['latitude'] as num).toDouble(),
           longitude: (r['longitude'] as num).toDouble(),
           radiusMeters: r['radius_m'] as int,
+          active: r['active'] as bool? ?? true,
         ),
     ];
+  });
+
+  @override
+  Future<void> saveSite(Site site) => guard(() async {
+    final values = {
+      'name': site.name,
+      'address': site.address,
+      'latitude': site.latitude,
+      'longitude': site.longitude,
+      'radius_m': site.radiusMeters,
+    };
+    if (site.id.isEmpty) {
+      await ctx.client.from('sites').insert({
+        ...values,
+        'org_id': await ctx.orgId(),
+      });
+    } else {
+      await ctx.client.from('sites').update(values).eq('id', site.id);
+    }
+  });
+
+  @override
+  Future<void> setSiteActive(String siteId, bool active) => guard(() async {
+    await ctx.client
+        .from('sites')
+        .update({'active': active})
+        .eq('id', siteId);
   });
 
   @override

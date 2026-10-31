@@ -49,6 +49,7 @@ app.*.map.json
 .env.*
 !.env.example
 *.env.json
+env.json
 !env.example.json
 android/key.properties
 *.jks

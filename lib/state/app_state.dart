@@ -15,6 +15,9 @@ import 'models.dart';
 /// Una fila de "Quién trabaja hoy".
 typedef LiveRow = ({String employeeId, String sub, String hours, bool onShift});
 
+/// Resultado del registro de un gerente.
+enum SignUpOutcome { signedIn, confirmEmail, failed }
+
 /// Estado central de la app.
 ///
 /// Con un [Backend] (Supabase) carga y escribe datos reales y escucha los
@@ -34,6 +37,7 @@ class AppState extends ChangeNotifier {
       _seedDemo();
     } else {
       _restoring = true;
+      _authSub = backend.auth.onSignedIn.listen((_) => _onSignedIn());
     }
   }
 
@@ -45,11 +49,13 @@ class AppState extends ChangeNotifier {
   DateTime get now => _now();
 
   StreamSubscription<String>? _changesSub;
+  StreamSubscription<void>? _authSub;
   Timer? _changesDebounce;
   final Set<String> _dirtyTables = {};
 
   @override
   void dispose() {
+    _authSub?.cancel();
     _changesSub?.cancel();
     _changesDebounce?.cancel();
     super.dispose();
@@ -125,7 +131,24 @@ class AppState extends ChangeNotifier {
     } finally {
       _restoring = false;
       notifyListeners();
+      final retry = _signInArrivedWhileRestoring && _session == null;
+      _signInArrivedWhileRestoring = false;
+      if (retry) unawaited(restoreSession());
     }
+  }
+
+  bool _signInArrivedWhileRestoring = false;
+
+  /// Sesión que llega desde un enlace del correo (invitación o confirmación
+  /// de registro), con la app abierta o al abrirla. Los inicios de sesión
+  /// que hace la propia app ya cargan el perfil y se ignoran aquí.
+  void _onSignedIn() {
+    if (_session != null || _busy) return;
+    if (_restoring) {
+      _signInArrivedWhileRestoring = true;
+      return;
+    }
+    unawaited(restoreSession());
   }
 
   /// Modo demo: entra con el rol elegido, sin contraseña.
@@ -156,6 +179,54 @@ class AppState extends ChangeNotifier {
     } on AppException catch (e) {
       _flashError(e);
       return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Registro de gerente: crea la cuenta y la organización. Si Supabase pide
+  /// confirmar el correo, devuelve [SignUpOutcome.confirmEmail] y la sesión
+  /// llega después por el enlace del correo.
+  Future<SignUpOutcome> signUpManager({
+    required String fullName,
+    required String orgName,
+    required String email,
+    required String password,
+  }) async {
+    final backend = _backend;
+    if (backend == null) return SignUpOutcome.failed;
+    if (fullName.trim().isEmpty || fullName.trim().length > 120) {
+      flash(strings.error('invalid_name'));
+      return SignUpOutcome.failed;
+    }
+    if (orgName.trim().isEmpty || orgName.trim().length > 120) {
+      flash(strings.error('invalid_org_name'));
+      return SignUpOutcome.failed;
+    }
+    if (!_emailRe.hasMatch(email.trim())) {
+      flash(strings.error('invalid_email'));
+      return SignUpOutcome.failed;
+    }
+    if (password.length < 8) {
+      flash(strings['passwordTooShort']);
+      return SignUpOutcome.failed;
+    }
+    _busy = true;
+    notifyListeners();
+    try {
+      final user = await backend.auth.signUpManager(
+        fullName: fullName,
+        orgName: orgName,
+        email: email,
+        password: password,
+      );
+      if (user == null) return SignUpOutcome.confirmEmail;
+      await _startSession(user);
+      return SignUpOutcome.signedIn;
+    } on AppException catch (e) {
+      _flashError(e);
+      return SignUpOutcome.failed;
     } finally {
       _busy = false;
       notifyListeners();
@@ -237,7 +308,7 @@ class AppState extends ChangeNotifier {
 
   void _clearData() {
     employees = [];
-    sites = [];
+    allSites = [];
     shifts = [];
     week.clear();
     requests = [];
@@ -311,7 +382,7 @@ class AppState extends ChangeNotifier {
     for (final e in employees) {
       e.hoursWorked = previousHours[e.id] ?? 0;
     }
-    sites = results[1] as List<Site>;
+    allSites = results[1] as List<Site>;
   }
 
   Future<void> _loadWeek() async {
@@ -415,7 +486,13 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------
 
   List<Employee> employees = [];
-  List<Site> sites = [];
+
+  /// Todos los sitios, también los desactivados (para el historial y la
+  /// pantalla de sitios).
+  List<Site> allSites = [];
+
+  /// Sitios donde se puede programar y fichar.
+  List<Site> get sites => allSites.where((s) => s.active).toList();
 
   Employee employeeById(String id) {
     for (final e in employees) {
@@ -437,7 +514,7 @@ class AppState extends ChangeNotifier {
   }
 
   Site? siteById(String? id) {
-    for (final s in sites) {
+    for (final s in allSites) {
       if (s.id == id) return s;
     }
     return null;
@@ -551,6 +628,131 @@ class AppState extends ChangeNotifier {
       await backend.team.setEmployeeStatus(employeeId, status);
     } on AppException catch (err) {
       e.status = previous;
+      _flashError(err);
+      notifyListeners();
+    }
+  }
+
+  /// Ubicación actual para crear un sitio desde la puerta. Devuelve null y
+  /// muestra el error si no se puede leer el GPS.
+  Future<LocationFix?> currentLocation() async {
+    final backend = _backend;
+    if (backend == null) {
+      return const LocationFix(
+        latitude: 4.6351,
+        longitude: -74.0656,
+        accuracyMeters: 8,
+        isMocked: false,
+      );
+    }
+    try {
+      return await backend.location.currentFix();
+    } on AppException catch (e) {
+      _flashError(e);
+      return null;
+    }
+  }
+
+  /// Crea el sitio si `id` es null; si no, lo actualiza. Devuelve true si
+  /// se guardó.
+  Future<bool> saveSite({
+    String? id,
+    required String name,
+    required String address,
+    required double? latitude,
+    required double? longitude,
+    required int radiusMeters,
+  }) async {
+    final cleanName = name.trim();
+    final cleanAddress = address.trim();
+    if (cleanName.isEmpty || cleanName.length > 120) {
+      flash(strings.error('invalid_site_name'));
+      return false;
+    }
+    if (cleanAddress.length > 240) {
+      flash(strings.error('invalid_address'));
+      return false;
+    }
+    if (latitude == null ||
+        longitude == null ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      flash(strings.error('invalid_coordinates'));
+      return false;
+    }
+    if (radiusMeters < Site.minRadius || radiusMeters > Site.maxRadius) {
+      flash(strings.error('invalid_radius'));
+      return false;
+    }
+
+    final previous = id == null ? null : siteById(id);
+    final site = Site(
+      id: id ?? '',
+      name: cleanName,
+      address: cleanAddress.isEmpty ? null : cleanAddress,
+      latitude: latitude,
+      longitude: longitude,
+      radiusMeters: radiusMeters,
+      active: previous?.active ?? true,
+    );
+
+    final backend = _backend;
+    if (backend == null) {
+      final local = Site(
+        id: id ?? _localId(),
+        name: site.name,
+        address: site.address,
+        latitude: site.latitude,
+        longitude: site.longitude,
+        radiusMeters: site.radiusMeters,
+        active: site.active,
+      );
+      allSites = [
+        for (final s in allSites)
+          if (s.id != local.id) s,
+        local,
+      ]..sort((a, b) => a.name.compareTo(b.name));
+      flash(strings['saveOk']);
+      notifyListeners();
+      return true;
+    }
+    try {
+      await backend.team.saveSite(site);
+      flash(strings['saveOk']);
+      await _safe(_loadTeam);
+      return true;
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    }
+  }
+
+  Future<void> setSiteActive(String siteId, bool active) async {
+    final index = allSites.indexWhere((s) => s.id == siteId);
+    if (index < 0) return;
+    final previous = allSites[index];
+    if (previous.active == active) return;
+    allSites = [...allSites]
+      ..[index] = Site(
+        id: previous.id,
+        name: previous.name,
+        address: previous.address,
+        latitude: previous.latitude,
+        longitude: previous.longitude,
+        radiusMeters: previous.radiusMeters,
+        active: active,
+      );
+    flash(strings['saveOk']);
+    notifyListeners();
+    final backend = _backend;
+    if (backend == null) return;
+    try {
+      await backend.team.setSiteActive(siteId, active);
+    } on AppException catch (err) {
+      final i = allSites.indexWhere((s) => s.id == siteId);
+      if (i >= 0) allSites = [...allSites]..[i] = previous;
       _flashError(err);
       notifyListeners();
     }
@@ -1725,7 +1927,7 @@ class AppState extends ChangeNotifier {
       emp('e4', 'Sofía Lara', 'Mesera', 'Server', 6500, 34, EmployeeStatus.inactive, 4),
     ];
 
-    sites = const [
+    allSites = const [
       Site(
         id: 's0',
         name: 'El Roble',
