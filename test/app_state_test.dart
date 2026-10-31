@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart' show DateUtils, Locale;
 
 import 'package:daynamic_flow/i18n/app_lang.dart';
 import 'package:daynamic_flow/state/app_state.dart';
@@ -25,7 +26,9 @@ void main() {
 
     test('formatElapsed pads to HH:MM:SS', () {
       expect(
-        AppState.formatElapsed(const Duration(hours: 4, minutes: 2, seconds: 9)),
+        AppState.formatElapsed(
+          const Duration(hours: 4, minutes: 2, seconds: 9),
+        ),
         '04:02:09',
       );
     });
@@ -38,23 +41,126 @@ void main() {
       app.approveRequest(target.id);
 
       expect(app.pendingRequests.length, before - 1);
-      expect(app.requests.firstWhere((r) => r.id == target.id).resolved, isTrue);
+      expect(
+        app.requests.firstWhere((r) => r.id == target.id).resolved,
+        isTrue,
+      );
     });
 
-    test('createShift adds a slot and decrements the open count', () {
+    test('createShift covers a matching open shift', () async {
       final app = AppState();
-      final day = app.week.firstWhere((d) => d.openCount > 0);
-      final before = day.slots.length;
+      final open = app.shifts.firstWhere(
+        (s) => s.employeeId == null && s.startsAt.isAfter(app.now),
+      );
+      final day = app.week.firstWhere(
+        (d) => d.slots.any((s) => s.shiftId == open.id),
+      );
       final openBefore = day.openCount;
-
-      app.createShift(
-        employeeId: app.employees.first.id,
-        weekdayIndex: day.weekdayIndex,
-        timeLabel: '09–17',
+      final employee = app.assignableEmployees.firstWhere(
+        (e) => !app.shifts.any(
+          (s) =>
+              s.employeeId == e.id &&
+              s.startsAt.isBefore(open.endsAt) &&
+              s.endsAt.isAfter(open.startsAt),
+        ),
       );
 
-      expect(day.slots.length, before + 1);
+      final ok = await app.createShift(
+        employeeId: employee.id,
+        startsAt: open.startsAt,
+        endsAt: open.endsAt,
+        siteId: open.siteId,
+      );
+
+      expect(ok, isTrue);
+      expect(open.employeeId, employee.id);
       expect(day.openCount, openBefore - 1);
+    });
+
+    test('createShift accepts any length between 15 min and 16 h', () async {
+      final app = AppState();
+      final employee = app.assignableEmployees.first;
+      final day = DateUtils.dateOnly(app.now).add(const Duration(days: 20));
+      final start = DateTime(day.year, day.month, day.day, 10, 30);
+
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: start,
+          endsAt: start.add(const Duration(minutes: 90)),
+        ),
+        isTrue,
+      );
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: start.add(const Duration(hours: 3)),
+          endsAt: start.add(const Duration(hours: 3, minutes: 5)),
+        ),
+        isFalse,
+      );
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: start.add(const Duration(days: 1)),
+          endsAt: start.add(const Duration(days: 1, hours: 17)),
+        ),
+        isFalse,
+      );
+      // En el pasado no.
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: app.now.subtract(const Duration(hours: 2)),
+          endsAt: app.now.subtract(const Duration(hours: 1)),
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'updateShift changes hours and person; started shifts are locked',
+      () async {
+        final app = AppState();
+        final future = app.shifts.firstWhere(
+          (s) => s.employeeId != null && s.startsAt.isAfter(app.now),
+        );
+        final newStart = future.startsAt.add(const Duration(hours: 1));
+
+        final ok = await app.updateShift(
+          shiftId: future.id,
+          employeeId: null,
+          startsAt: newStart,
+          endsAt: newStart.add(const Duration(hours: 2)),
+          siteId: future.siteId,
+        );
+
+        expect(ok, isTrue);
+        final updated = app.shiftById(future.id)!;
+        expect(updated.employeeId, isNull);
+        expect(updated.duration, const Duration(hours: 2));
+
+        final started = Shift(
+          id: 'started',
+          siteId: future.siteId,
+          employeeId: app.assignableEmployees.first.id,
+          startsAt: app.now.subtract(const Duration(minutes: 30)),
+          endsAt: app.now.add(const Duration(hours: 1)),
+        );
+        app.shifts.add(started);
+        expect(app.canEditShift(started), isFalse);
+        expect(await app.cancelShift(started.id), isFalse);
+      },
+    );
+
+    test('cancelShift removes a future shift', () async {
+      final app = AppState();
+      final future = app.shifts.firstWhere((s) => s.startsAt.isAfter(app.now));
+      final count = app.shifts.length;
+
+      expect(await app.cancelShift(future.id), isTrue);
+      expect(app.shifts.length, count - 1);
+      expect(app.shiftById(future.id), isNull);
     });
 
     test('offerShift publishes a swap and a manager request', () {
@@ -154,6 +260,25 @@ void main() {
       expect(app.strings['manager'], 'Gerente');
       app.setLang(AppLang.en);
       expect(app.strings['manager'], 'Manager');
+    });
+
+    test('setLang updates the Flutter locale and reports the choice', () {
+      final saved = <AppLang>[];
+      final app = AppState(lang: AppLang.en, onLangChanged: saved.add);
+      expect(app.langListenable.value.locale.languageCode, 'en');
+
+      app.setLang(AppLang.es);
+      app.setLang(AppLang.es); // sin cambio: no se vuelve a guardar
+
+      expect(app.langListenable.value.locale.languageCode, 'es');
+      expect(saved, [AppLang.es]);
+    });
+
+    test('AppLang.resolve prefers the saved choice, then the phone', () {
+      expect(AppLang.resolve('en', const Locale('es')), AppLang.en);
+      expect(AppLang.resolve(null, const Locale('en', 'US')), AppLang.en);
+      expect(AppLang.resolve(null, const Locale('fr')), AppLang.es);
+      expect(AppLang.resolve('xx', const Locale('es', 'CO')), AppLang.es);
     });
 
     test('deactivateEmployee updates that employee only', () {

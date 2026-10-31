@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../i18n/app_lang.dart';
@@ -30,8 +31,14 @@ enum SignUpOutcome { signedIn, confirmEmail, failed }
 /// y funciones en `supabase/migrations`), así que las validaciones de aquí
 /// son para dar buena respuesta en la UI, no para seguridad.
 class AppState extends ChangeNotifier {
-  AppState({Backend? backend, this._camera, DateTime Function()? now})
-    : _backend = backend {
+  AppState({
+    Backend? backend,
+    this._camera,
+    DateTime Function()? now,
+    AppLang lang = AppLang.es,
+    this._onLangChanged,
+  }) : _backend = backend,
+       _lang = ValueNotifier(lang) {
     _now = now ?? (backend == null ? _demoClock() : DateTime.now);
     if (backend == null) {
       _seedDemo();
@@ -58,6 +65,7 @@ class AppState extends ChangeNotifier {
     _authSub?.cancel();
     _changesSub?.cancel();
     _changesDebounce?.cancel();
+    _lang.dispose();
     super.dispose();
   }
 
@@ -65,15 +73,25 @@ class AppState extends ChangeNotifier {
   // Idioma
   // ---------------------------------------------------------------------
 
-  AppLang _lang = AppLang.es;
-  AppLang get lang => _lang;
-  bool get isEnglish => _lang == AppLang.en;
-  AppStrings get strings => AppStrings.of(_lang);
-  List<String> get dayLabels => strings.days(_lang);
+  final ValueNotifier<AppLang> _lang;
+
+  /// Para guardar la elección en el teléfono.
+  final void Function(AppLang)? _onLangChanged;
+
+  AppLang get lang => _lang.value;
+
+  /// Solo cambia con el idioma: `MaterialApp` lo escucha para traducir los
+  /// componentes de Flutter sin reconstruirse con cada cambio de estado.
+  ValueListenable<AppLang> get langListenable => _lang;
+
+  bool get isEnglish => lang == AppLang.en;
+  AppStrings get strings => AppStrings.of(lang);
+  List<String> get dayLabels => strings.days(lang);
 
   void setLang(AppLang lang) {
-    if (_lang == lang) return;
-    _lang = lang;
+    if (_lang.value == lang) return;
+    _lang.value = lang;
+    _onLangChanged?.call(lang);
     notifyListeners();
   }
 
@@ -460,10 +478,10 @@ class AppState extends ChangeNotifier {
 
   DateTime get weekStart => _addDays(today, -todayIndex);
 
-  String get todayLabel => Fmt.longDate(today, _lang);
+  String get todayLabel => Fmt.longDate(today, lang);
 
   String get weekRangeLabel =>
-      Fmt.dayRange(weekStart, _addDays(weekStart, 6), _lang);
+      Fmt.dayRange(weekStart, _addDays(weekStart, 6), lang);
 
   /// "Mié 9"
   String shortDayLabel(DateTime d) => '${dayLabels[d.weekday - 1]} ${d.day}';
@@ -536,7 +554,7 @@ class AppState extends ChangeNotifier {
     return employees.where((e) => e.name.toLowerCase().contains(q)).toList();
   }
 
-  String rateLabel(Employee e) => Fmt.money(e.hourlyRate, _lang);
+  String rateLabel(Employee e) => Fmt.money(e.hourlyRate, lang);
 
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
@@ -782,14 +800,15 @@ class AppState extends ChangeNotifier {
       final dayShifts =
           shifts.where((s) => DateUtils.isSameDay(s.startsAt, day.date)).toList()
             ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+      // Cubiertos y sin cubrir, en orden de hora: cada uno se puede abrir
+      // para editarlo o cancelarlo.
       day.slots = [
         for (final s in dayShifts)
-          if (s.employeeId != null)
-            ShiftSlot(
-              shiftId: s.id,
-              employeeId: s.employeeId!,
-              timeLabel: Fmt.hourRange(s.startsAt, s.endsAt),
-            ),
+          ShiftSlot(
+            shiftId: s.id,
+            employeeId: s.employeeId,
+            timeLabel: Fmt.hourRange(s.startsAt, s.endsAt),
+          ),
       ];
       day.openCount = dayShifts.where((s) => s.employeeId == null).length;
     }
@@ -804,51 +823,76 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  bool _overlaps(String employeeId, DateTime start, DateTime end) =>
-      shifts.any(
-        (s) =>
-            s.employeeId == employeeId &&
-            s.startsAt.isBefore(end) &&
-            s.endsAt.isAfter(start),
-      );
+  bool _overlaps(
+    String employeeId,
+    DateTime start,
+    DateTime end, {
+    String? exceptShiftId,
+  }) => shifts.any(
+    (s) =>
+        s.id != exceptShiftId &&
+        s.employeeId == employeeId &&
+        s.startsAt.isBefore(end) &&
+        s.endsAt.isAfter(start),
+  );
 
-  /// '09–17' / '17–01' sobre el día [weekdayIndex] de esta semana. Si la
-  /// hora de fin es menor que la de inicio, el turno termina al día siguiente.
-  (DateTime, DateTime) _parseTimeLabel(int weekdayIndex, String timeLabel) {
-    final parts = timeLabel.split(RegExp('[–-]'));
-    final startHour = int.parse(parts[0].trim().split(':').first);
-    final endHour = int.parse(parts[1].trim().split(':').first);
-    final day = _addDays(weekStart, weekdayIndex);
-    final start = DateTime(day.year, day.month, day.day, startHour);
-    var end = DateTime(day.year, day.month, day.day, endHour);
-    if (!end.isAfter(start)) end = _addDays(end, 1);
-    return (start, end);
+  /// Límites de duración de un turno (el máximo es el de la base de datos).
+  static const minShiftLength = Duration(minutes: 15);
+  static const maxShiftLength = Duration(hours: 16);
+
+  /// Un turno se puede editar o cancelar mientras no haya empezado.
+  bool canEditShift(Shift shift) => shift.startsAt.isAfter(now);
+
+  /// Valida un turno nuevo o editado y muestra el error. Devuelve true si
+  /// es válido.
+  bool _validShift({
+    required String? employeeId,
+    required DateTime start,
+    required DateTime end,
+    String? exceptShiftId,
+  }) {
+    String? error;
+    final length = end.difference(start);
+    if (!start.isAfter(now)) {
+      error = 'shift_in_past';
+    } else if (length < minShiftLength) {
+      error = 'shift_too_short';
+    } else if (length > maxShiftLength) {
+      error = 'shift_too_long';
+    } else if (employeeId != null &&
+        employeeById(employeeId).status != EmployeeStatus.active) {
+      error = 'employee_not_active';
+    } else if (employeeId != null &&
+        _overlaps(employeeId, start, end, exceptShiftId: exceptShiftId)) {
+      error = 'overlapping_shift';
+    }
+    if (error != null) flash(strings.error(error));
+    return error == null;
   }
 
-  /// Asigna un turno. Si ese día hay un turno sin cubrir con el mismo
-  /// horario, se cubre ese; si no, se crea uno nuevo.
-  Future<void> createShift({
+  String _shiftSummary(String? employeeId, DateTime start, DateTime end) => [
+    if (employeeId != null) employeeById(employeeId).firstName,
+    '${dayLabels[start.weekday - 1]} ${Fmt.hourRange(start, end)}',
+  ].join(' ');
+
+  /// Asigna un turno con cualquier hora de inicio y fin. Si ya hay un turno
+  /// sin cubrir con el mismo horario y sitio, se cubre ese; si no, se crea
+  /// uno nuevo. Devuelve true si se guardó.
+  Future<bool> createShift({
     required String employeeId,
-    required int weekdayIndex,
-    required String timeLabel,
+    required DateTime startsAt,
+    required DateTime endsAt,
     String? siteId,
   }) async {
-    final emp = employeeById(employeeId);
-    if (emp.status != EmployeeStatus.active) {
-      flash(strings.error('employee_not_active'));
-      return;
-    }
-    final (start, end) = _parseTimeLabel(weekdayIndex, timeLabel);
-    if (_overlaps(employeeId, start, end)) {
-      flash(strings.error('overlapping_shift'));
-      return;
+    if (!_validShift(employeeId: employeeId, start: startsAt, end: endsAt)) {
+      return false;
     }
 
     Shift? open;
     for (final s in shifts) {
       if (s.employeeId == null &&
-          s.startsAt == start &&
-          s.endsAt == end &&
+          s.startsAt == startsAt &&
+          s.endsAt == endsAt &&
           (siteId == null || s.siteId == siteId)) {
         open = s;
         break;
@@ -857,47 +901,139 @@ class AppState extends ChangeNotifier {
     final targetSite = open?.siteId ?? siteId ?? (sites.isEmpty ? null : sites.first.id);
     if (targetSite == null) {
       flash(strings['noSites']);
-      return;
+      return false;
     }
 
-    final Shift local;
     if (open != null) {
       open.employeeId = employeeId;
-      local = open;
     } else {
-      local = Shift(
-        id: _localId(),
-        siteId: targetSite,
-        employeeId: employeeId,
-        startsAt: start,
-        endsAt: end,
+      shifts.add(
+        Shift(
+          id: _localId(),
+          siteId: targetSite,
+          employeeId: employeeId,
+          startsAt: startsAt,
+          endsAt: endsAt,
+        ),
       );
-      shifts.add(local);
     }
     _rebuildWeek();
     flash(
-      '${strings['shiftOk']} · ${emp.firstName} '
-      '${dayLabels[weekdayIndex]} $timeLabel',
+      '${strings['shiftOk']} · ${_shiftSummary(employeeId, startsAt, endsAt)}',
     );
     notifyListeners();
 
     final backend = _backend;
-    if (backend == null) return;
+    if (backend == null) return true;
+    var ok = true;
     try {
       if (open != null) {
         await backend.shifts.assignShift(open.id, employeeId);
       } else {
         await backend.shifts.createShift(
           siteId: targetSite,
-          startsAt: start,
-          endsAt: end,
+          startsAt: startsAt,
+          endsAt: endsAt,
           employeeId: employeeId,
         );
       }
     } on AppException catch (e) {
       _flashError(e);
+      ok = false;
     }
     await _safe(_loadWeek);
+    return ok;
+  }
+
+  /// Cambia horario, sitio o persona de un turno que no ha empezado.
+  /// `employeeId == null` lo deja sin cubrir. Devuelve true si se guardó.
+  Future<bool> updateShift({
+    required String shiftId,
+    required String? employeeId,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    required String siteId,
+  }) async {
+    final index = shifts.indexWhere((s) => s.id == shiftId);
+    if (index < 0) return false;
+    final previous = shifts[index];
+    if (!canEditShift(previous)) {
+      flash(strings.error('shift_already_started'));
+      return false;
+    }
+    if (!_validShift(
+      employeeId: employeeId,
+      start: startsAt,
+      end: endsAt,
+      exceptShiftId: shiftId,
+    )) {
+      return false;
+    }
+
+    shifts[index] = Shift(
+      id: shiftId,
+      siteId: siteId,
+      employeeId: employeeId,
+      startsAt: startsAt,
+      endsAt: endsAt,
+    );
+    _rebuildWeek();
+    flash(
+      '${strings['shiftUpdated']} · ${_shiftSummary(employeeId, startsAt, endsAt)}',
+    );
+    notifyListeners();
+
+    final backend = _backend;
+    if (backend == null) return true;
+    try {
+      await backend.shifts.updateShift(
+        shiftId: shiftId,
+        siteId: siteId,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        employeeId: employeeId,
+      );
+      await _safe(_loadWeek);
+      await _safe(_loadRequests);
+      return true;
+    } on AppException catch (e) {
+      final i = shifts.indexWhere((s) => s.id == shiftId);
+      if (i >= 0) shifts[i] = previous;
+      _rebuildWeek();
+      _flashError(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Cancela (borra) un turno que no ha empezado. El servidor avisa a la
+  /// persona que lo tenía. Devuelve true si se canceló.
+  Future<bool> cancelShift(String shiftId) async {
+    final index = shifts.indexWhere((s) => s.id == shiftId);
+    if (index < 0) return false;
+    final previous = shifts[index];
+    if (!canEditShift(previous)) {
+      flash(strings.error('shift_already_started'));
+      return false;
+    }
+    shifts.removeAt(index);
+    _rebuildWeek();
+    flash(strings['shiftCancelled']);
+    notifyListeners();
+
+    final backend = _backend;
+    if (backend == null) return true;
+    try {
+      await backend.shifts.cancelShift(shiftId);
+      await _safe(_loadRequests);
+      return true;
+    } on AppException catch (e) {
+      shifts.insert(index.clamp(0, shifts.length), previous);
+      _rebuildWeek();
+      _flashError(e);
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<void> duplicateWeek() async {
@@ -1078,7 +1214,7 @@ class AppState extends ChangeNotifier {
       });
     }
     return strings.fmt('startsOnDay', {
-      'day': Fmt.longDate(s.startsAt, _lang),
+      'day': Fmt.longDate(s.startsAt, lang),
     });
   }
 
@@ -1818,7 +1954,7 @@ class AppState extends ChangeNotifier {
   String get periodLabel => Fmt.periodRange(
     periodStart,
     _addDays(periodEndExclusive, -1),
-    _lang,
+    lang,
   );
 
   double get totalHours => employees.fold(0, (a, e) => a + e.hoursWorked);

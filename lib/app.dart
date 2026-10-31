@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'i18n/app_lang.dart';
 
 import 'screens/invite_screen.dart';
 import 'screens/login_screen.dart';
@@ -12,11 +15,21 @@ import 'theme/app_theme.dart';
 import 'widgets/brand_logo.dart';
 
 class TurnosApp extends StatefulWidget {
-  const TurnosApp({super.key, this.backend, this.camera});
+  const TurnosApp({
+    super.key,
+    this.backend,
+    this.camera,
+    this.lang = AppLang.es,
+    this.onLangChanged,
+  });
 
   /// null = modo demo con datos en memoria.
   final Backend? backend;
   final PhotoCaptureService? camera;
+
+  /// Idioma al abrir la app y dónde guardar el que se elija.
+  final AppLang lang;
+  final void Function(AppLang)? onLangChanged;
 
   @override
   State<TurnosApp> createState() => _TurnosAppState();
@@ -26,6 +39,8 @@ class _TurnosAppState extends State<TurnosApp> {
   late final AppState _appState = AppState(
     backend: widget.backend,
     camera: widget.camera,
+    lang: widget.lang,
+    onLangChanged: widget.onLangChanged,
   );
 
   @override
@@ -44,13 +59,21 @@ class _TurnosAppState extends State<TurnosApp> {
   Widget build(BuildContext context) {
     return AppScope(
       state: _appState,
-      child: MaterialApp(
-        title: 'Turnos',
-        debugShowCheckedModeBanner: false,
-        scaffoldMessengerKey: rootScaffoldMessengerKey,
-        theme: AppTheme.light,
-        themeMode: ThemeMode.light,
-        home: const _StartGate(),
+      // El idioma elegido en la app también traduce los componentes de
+      // Flutter: reloj, calendario y botones de los diálogos del sistema.
+      child: ValueListenableBuilder<AppLang>(
+        valueListenable: _appState.langListenable,
+        builder: (context, lang, _) => MaterialApp(
+          title: 'Turnos',
+          debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
+          theme: AppTheme.light,
+          themeMode: ThemeMode.light,
+          locale: lang.locale,
+          supportedLocales: [for (final l in AppLang.values) l.locale],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          home: const _StartGate(),
+        ),
       ),
     );
   }

@@ -153,7 +153,9 @@ class ShiftSlot {
   });
 
   final String shiftId;
-  final String employeeId;
+
+  /// null = turno sin cubrir.
+  final String? employeeId;
   final String timeLabel;
 }
 

@@ -165,7 +165,7 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
     <h1>Así funciona la app, <em>paso a paso</em></h1>
     <p class="lede">El gerente registra su empresa, crea sus sitios y turnos, e invita al equipo. Cada empleado entra por esa invitación y ya queda dentro de la empresa correcta. Elige un rol y mira el recorrido con las pantallas reales.</p>
     <div class="roles" role="tablist" aria-label="Rol">
-      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">12 pasos</span></button>
+      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">13 pasos</span></button>
       <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">9 pasos</span></button>
     </div>
   </header>
@@ -218,6 +218,7 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
           <tr><td>Invitaciones</td><td>La función <code>invite-employee</code> comprueba que quien invita es gerente activo y crea el perfil en su empresa.</td><td>El invitado aparece con la etiqueta INVITADO.</td></tr>
           <tr><td>Sitios</td><td>Solo el gerente puede crearlos o cambiarlos. Radio entre 20 y 1000 m.</td><td>Un empleado no ve la opción Sitios.</td></tr>
           <tr><td>Fichaje</td><td><code>clock_in()</code> recibe las coordenadas y calcula la distancia al sitio del turno. Rechaza si está fuera del radio, si el GPS tiene más de 100 m de margen o si es una ubicación falsa.</td><td>“Estás a 240 m del sitio. Acércate para marcar”.</td></tr>
+          <tr><td>Editar o cancelar turnos</td><td><code>update_shift()</code> y <code>cancel_shift()</code>: solo el gerente, solo turnos que no han empezado y sin fichajes. Duración de 15 min a 16 h.</td><td>Un turno ya empezado se abre en solo lectura; la persona afectada recibe una notificación.</td></tr>
           <tr><td>Turnos que se cruzan</td><td>La base de datos impide dos turnos a la misma hora para la misma persona.</td><td>“Esa persona ya tiene un turno a esa hora”.</td></tr>
           <tr><td>Solicitudes y cambios</td><td><code>resolve_request()</code>, <code>offer_shift()</code> y <code>claim_swap()</code> validan cada paso; el gerente confirma.</td><td>Notificación a los dos lados.</td></tr>
           <tr><td>Desactivar</td><td>Un perfil o sitio inactivo pierde el acceso, pero el historial se conserva.</td><td>La persona no puede entrar; el sitio deja de aceptar fichajes.</td></tr>
@@ -255,15 +256,20 @@ const STEPS = {
       do: "La lista muestra cada sitio con su radio. Toca uno para editarlo o desactivarlo.",
       path: ["Sitios"],
       behind: ["Un sitio desactivado deja de aceptar fichajes y turnos nuevos, pero conserva el historial."] },
-    { img: "m05_week", x: 50, y: 31.5, title: "Mira la semana",
-      do: "En Turnos ves la semana completa. Los huecos en rojo son turnos sin cubrir.",
+    { img: "m05_week", x: 33, y: 31.6, title: "Mira la semana",
+      do: "En Turnos ves la semana completa con la hora de cada turno. Los que están en rojo no tienen a nadie asignado.",
       path: ["Turnos"],
       behind: ["Los cambios llegan en tiempo real: si alguien toma un turno, la semana se actualiza sola."],
       tip: "<b>Duplicar semana anterior</b> copia la planificación de la semana pasada." },
-    { img: "m06_newshift", x: 50, y: 93, title: "Asigna un turno",
-      do: "Elige a la persona, el día y el horario. Toca Asignar turno.",
+    { img: "m06_newshift", x: 50, y: 93.4, title: "Asigna un turno",
+      do: "Elige a la persona y el día. Toca Inicio y Fin para poner cualquier hora, o usa los atajos de 1, 2, 4 u 8 horas. Toca Asignar turno.",
       path: ["Turnos", "+", "Asignar turno"],
-      behind: ["La base de datos impide que una persona tenga dos turnos a la misma hora."] },
+      behind: ["Un turno puede durar desde 15 minutos hasta 16 horas, y puede terminar al día siguiente.", "La base de datos impide que una persona tenga dos turnos que se crucen."] },
+    { img: "m06b_editshift", x: 15, y: 76, title: "Edita o cancela un turno",
+      do: "Toca cualquier turno de la semana para cambiar la persona, el día o las horas, o dejarlo sin asignar. Cancelar turno pide confirmación antes de borrarlo.",
+      path: ["Turnos", "Tocar un turno", "Guardar"],
+      behind: ["<code>update_shift()</code> y <code>cancel_shift()</code> solo aceptan turnos que aún no empiezan y no tienen fichajes.", "Avisan a la persona que pierde o recibe el turno, o que ve cambiado su horario.", "Si había un cambio de turno pendiente, queda sin efecto."],
+      tip: "Un turno que ya empezó se abre en solo lectura." },
     { img: "m07_team", x: 86, y: 6.3, title: "Ve a tu equipo",
       do: "En Equipo están todos con su cargo, horas y estado. Toca + Invitar para sumar a alguien.",
       path: ["Equipo", "+ Invitar"],

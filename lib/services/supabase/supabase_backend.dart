@@ -440,6 +440,31 @@ class _SupabaseShifts implements ShiftsRepository {
   });
 
   @override
+  Future<void> updateShift({
+    required String shiftId,
+    required String siteId,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    String? employeeId,
+  }) => guard(() async {
+    await ctx.client.rpc(
+      'update_shift',
+      params: {
+        'p_shift_id': shiftId,
+        'p_site_id': siteId,
+        'p_starts_at': _iso(startsAt),
+        'p_ends_at': _iso(endsAt),
+        'p_employee_id': employeeId,
+      },
+    );
+  });
+
+  @override
+  Future<void> cancelShift(String shiftId) => guard(() async {
+    await ctx.client.rpc('cancel_shift', params: {'p_shift_id': shiftId});
+  });
+
+  @override
   Future<int> duplicatePreviousWeek(DateTime weekStart) => guard(() async {
     final n = await ctx.client.rpc(
       'duplicate_previous_week',

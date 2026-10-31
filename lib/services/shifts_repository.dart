@@ -14,6 +14,19 @@ abstract class ShiftsRepository {
 
   Future<void> assignShift(String shiftId, String employeeId);
 
+  /// Solo turnos que no han empezado. `employeeId == null` lo deja sin
+  /// cubrir. El servidor avisa a las personas afectadas.
+  Future<void> updateShift({
+    required String shiftId,
+    required String siteId,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    String? employeeId,
+  });
+
+  /// Borra un turno que no ha empezado y avisa a quien lo tenía.
+  Future<void> cancelShift(String shiftId);
+
   /// Devuelve cuántos turnos se crearon.
   Future<int> duplicatePreviousWeek(DateTime weekStart);
 

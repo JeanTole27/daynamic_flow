@@ -55,7 +55,11 @@ class WeekScreen extends StatelessWidget {
                     child: const SizedBox(
                       width: 46,
                       height: 46,
-                      child: Icon(Icons.add, color: AppColors.onPrimary, size: 24),
+                      child: Icon(
+                        Icons.add,
+                        color: AppColors.onPrimary,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -127,34 +131,14 @@ class _WeekDayRow extends StatelessWidget {
               runSpacing: 5,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                for (final slot in day.slots) _SlotChip(slot: slot),
-                if (day.openCount > 0)
-                  Material(
-                    color: AppColors.red.withValues(alpha: 0.08),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      side: BorderSide(
-                        color: AppColors.red.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: () => showNewShiftSheet(context),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: Text(
-                          '${day.openCount} ${t['open'].toLowerCase()}',
-                          style: AppTextStyles.mono(
-                            size: 11,
-                            weight: FontWeight.w700,
-                            color: AppColors.red,
-                          ),
-                        ),
-                      ),
-                    ),
+                for (final slot in day.slots)
+                  _SlotChip(
+                    slot: slot,
+                    openLabel: t['open'],
+                    onTap: () {
+                      final shift = app.shiftById(slot.shiftId);
+                      if (shift != null) showEditShiftSheet(context, shift);
+                    },
                   ),
               ],
             ),
@@ -165,33 +149,67 @@ class _WeekDayRow extends StatelessWidget {
   }
 }
 
+/// Un turno del día. Los sin cubrir van en rojo. Al tocarlo se edita.
 class _SlotChip extends StatelessWidget {
-  const _SlotChip({required this.slot});
+  const _SlotChip({
+    required this.slot,
+    required this.openLabel,
+    required this.onTap,
+  });
 
   final ShiftSlot slot;
+  final String openLabel;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final emp = app.employeeById(slot.employeeId);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(6, 6, 11, 6),
-      decoration: BoxDecoration(
-        color: AppColors.chipBg,
+    final employeeId = slot.employeeId;
+    final open = employeeId == null;
+    return Material(
+      color: open ? AppColors.red.withValues(alpha: 0.08) : AppColors.chipBg,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
+        side: open
+            ? BorderSide(color: AppColors.red.withValues(alpha: 0.5))
+            : BorderSide.none,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InitialsAvatar(
-            initials: emp.initials,
-            paletteIndex: emp.avatarIndex,
-            size: 20,
-            fontSize: 9,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(open ? 11 : 6, 6, 11, 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (open)
+                Text(
+                  '${openLabel.toUpperCase()} ',
+                  style: AppTextStyles.mono(
+                    size: 10,
+                    weight: FontWeight.w700,
+                    color: AppColors.red,
+                  ),
+                )
+              else ...[
+                InitialsAvatar(
+                  initials: app.employeeById(employeeId).initials,
+                  paletteIndex: app.employeeById(employeeId).avatarIndex,
+                  size: 20,
+                  fontSize: 9,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                slot.timeLabel,
+                style: AppTextStyles.mono(
+                  size: 11,
+                  color: open ? AppColors.red : AppColors.text,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          Text(slot.timeLabel, style: AppTextStyles.mono(size: 11)),
-        ],
+        ),
       ),
     );
   }
