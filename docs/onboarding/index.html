@@ -165,8 +165,8 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
     <h1>Así funciona la app, <em>paso a paso</em></h1>
     <p class="lede">El gerente registra su empresa, crea sus sitios y turnos, e invita al equipo. Cada empleado entra por esa invitación y ya queda dentro de la empresa correcta. Elige un rol y mira el recorrido con las pantallas reales.</p>
     <div class="roles" role="tablist" aria-label="Rol">
-      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">14 pasos</span></button>
-      <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">13 pasos</span></button>
+      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">19 pasos</span></button>
+      <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">14 pasos</span></button>
     </div>
   </header>
 
@@ -215,7 +215,7 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
           <tr><td>El rol</td><td>Sale del perfil guardado (<code>profiles.role</code>). Elegir “Gerente” o “Empleado” al entrar solo cambia el formulario.</td><td>Un empleado que elige “Gerente” entra igual a su vista de empleado.</td></tr>
           <tr><td>Una empresa por persona</td><td><code>create_organization()</code> rechaza a quien ya tiene perfil, incluidos los invitados.</td><td>“Ese correo ya está registrado”.</td></tr>
           <tr><td>Cada uno ve su empresa</td><td>Todas las tablas filtran por <code>current_org_id()</code> con seguridad a nivel de fila (RLS).</td><td>Nunca aparecen datos de otra empresa.</td></tr>
-          <tr><td>Invitaciones</td><td>La función <code>invite-employee</code> comprueba que quien invita es gerente activo y crea el perfil en su empresa.</td><td>El invitado aparece con la etiqueta INVITADO.</td></tr>
+          <tr><td>Invitaciones</td><td>La función <code>invite-employee</code> comprueba que quien invita es gerente activo, crea el perfil en su empresa y permite reenviar o cancelar mientras no se acepte.</td><td>El invitado aparece con la etiqueta INVITADO.</td></tr>
           <tr><td>Sitios</td><td>Solo el gerente puede crearlos o cambiarlos. Radio entre 20 y 1000 m.</td><td>Un empleado no ve la opción Sitios.</td></tr>
           <tr><td>Fichaje</td><td><code>clock_in()</code> recibe las coordenadas y calcula la distancia al sitio del turno. Rechaza si está fuera del radio, si el GPS tiene más de 100 m de margen o si es una ubicación falsa.</td><td>“Estás a 240 m del sitio. Acércate para marcar”.</td></tr>
           <tr><td>Editar o cancelar turnos</td><td><code>update_shift()</code> y <code>cancel_shift()</code>: solo el gerente, solo turnos que no han empezado y sin fichajes. Duración de 15 min a 16 h.</td><td>Un turno ya empezado se abre en solo lectura; la persona afectada recibe una notificación.</td></tr>
@@ -223,6 +223,8 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
           <tr><td>Solicitudes y cambios</td><td><code>request_day_off()</code> y <code>notify_late()</code> (empleado), <code>resolve_request()</code>, <code>offer_shift()</code> y <code>claim_swap()</code> validan cada paso: fechas, duplicados y que el turno sea propio. El gerente confirma.</td><td>Notificación a los dos lados.</td></tr>
           <tr><td>Avisos de turnos</td><td>Un trigger en la tabla de turnos avisa siempre que alguien recibe, pierde o ve cambiado un turno, venga de donde venga.</td><td>“Te asignaron un turno el 01/11 09:00”.</td></tr>
           <tr><td>Contraseñas</td><td>Recuperación con enlace al correo; la contraseña nueva se pide antes de entrar.</td><td>No revela si un correo tiene cuenta.</td></tr>
+          <tr><td>Corregir fichajes</td><td><code>fix_time_entry()</code>: solo el gerente, con motivo, horas coherentes y máximo 24 h. Guarda quién y por qué.</td><td>El empleado recibe aviso; el fichaje queda marcado Corregido.</td></tr>
+          <tr><td>Eliminar cuenta</td><td><code>delete-account</code> borra la cuenta; si es el único gerente, <code>purge_organization()</code> borra la empresa completa. Ningún usuario puede ejecutarla directamente.</td><td>Confirmación antes de borrar; no se puede deshacer.</td></tr>
           <tr><td>Desactivar</td><td>Un perfil o sitio inactivo pierde el acceso, pero el historial se conserva.</td><td>La persona no puede entrar; el sitio deja de aceptar fichajes.</td></tr>
           <tr><td>Fotos de evidencia</td><td>Bucket privado <code>work-evidence</code>, en la carpeta empresa/empleado.</td><td>Solo la ven el empleado y su gerente.</td></tr>
         </tbody>
@@ -284,6 +286,14 @@ const STEPS = {
       do: "La persona aparece en tu equipo con la etiqueta INVITADO hasta que abra el enlace del correo.",
       path: ["Equipo"],
       behind: ["Cuando el empleado crea su contraseña, la etiqueta cambia a ACTIVO sola."] },
+    { img: "m09b_invited_actions", x: 26.8, y: 73.9, title: "Reenvía o cancela la invitación",
+      do: "Si el correo no llegó o la dirección estaba mal, abre la ficha de la persona invitada y toca Reenviar invitación o Cancelar invitación.",
+      path: ["Equipo", "Persona invitada", "Reenviar / Cancelar"],
+      behind: ["Solo funciona mientras la invitación no se haya aceptado.", "Cancelar borra a la persona del equipo; puedes volver a invitarla con el correo correcto."] },
+    { img: "m15_edit_member", x: 50, y: 66.7, title: "Edita los datos de alguien",
+      do: "En la ficha de cada persona toca Editar datos para cambiar su nombre, cargo, tarifa por hora o rol. Desde ahí también la activas o desactivas.",
+      path: ["Equipo", "Persona", "Editar datos"],
+      behind: ["La tarifa nueva se usa en los reportes de costo.", "Nadie puede cambiarse su propio rol: lo impide también el servidor."] },
     { img: "m04_home", x: 29, y: 36.3, title: "Aprueba solicitudes",
       do: "En Hoy ves cuántos trabajan ahora, los turnos sin cubrir y las solicitudes pendientes: días libres, avisos de llegada tarde, entradas tarde y cambios de turno. Aprueba o rechaza con un toque.",
       path: ["Hoy", "Aprobar"],
@@ -296,6 +306,19 @@ const STEPS = {
       do: "Toca una persona para ver cada fichaje por día: sitio, hora de entrada y salida, horas, fotos y si salió fuera del sitio. Con CSV o PDF se genera el archivo y se abre el menú de compartir.",
       path: ["Reportes", "Persona", "CSV / PDF"],
       behind: ["El CSV trae un fichaje por fila y se abre en columnas en Excel (en español usa ; y coma decimal).", "El PDF trae un resumen por persona con el total y el detalle de todos los fichajes.", "Se envía por WhatsApp, correo o Drive desde el propio teléfono."] },
+    { img: "m17_entry_photos", x: 20, y: 84.4, title: "Mira las fotos de evidencia",
+      do: "En el detalle de una persona, toca un fichaje para ver sus horas, si fue corregido y las fotos que tomó el empleado. Toca una foto para ampliarla.",
+      path: ["Reportes", "Persona", "Fichaje"],
+      behind: ["Las fotos están en un almacenamiento privado: la app recibe enlaces temporales y solo los ven el empleado y su gerente."] },
+    { img: "m16_fix_entry", x: 22.4, y: 74, title: "Corrige un fichaje",
+      do: "Si alguien olvidó marcar salida o marcó a una hora equivocada, ve a Más → Quién trabaja hoy → Corregir un fichaje (o desde el detalle en Reportes). Ajusta entrada y salida y escribe el motivo.",
+      path: ["Quién trabaja hoy", "Corregir un fichaje", "Guardar"],
+      behind: ["<code>fix_time_entry()</code> exige motivo, que la salida sea posterior a la entrada, no futura y de máximo 24 h.", "Queda registro de quién corrigió y por qué; el empleado recibe un aviso y el fichaje se marca Corregido en Reportes y en el PDF."] },
+    { img: "m18_settings", x: 72.8, y: 52.5, title: "Ajustes y eliminar cuenta",
+      do: "En Más → Mi perfil → Ajustes cambias el idioma, las notificaciones y puedes eliminar tu cuenta. La app pide confirmación antes de borrar.",
+      path: ["Mi perfil", "Ajustes", "Eliminar cuenta"],
+      behind: ["La función <code>delete-account</code> borra la cuenta en el servidor.", "Si eres el único gerente, se borra la empresa completa: equipo, turnos, fichajes, mensajes y fotos. Si hay otro gerente, solo tu cuenta."],
+      tip: "Antes de borrar, nombra a otro gerente si quieres que la empresa siga." },
   ],
   empleado: [
     { img: "e01_invite", x: 50, y: 48.8, title: "Abre la invitación",
@@ -348,6 +371,10 @@ const STEPS = {
       do: "En Disponible marcas qué días y horas puedes trabajar. Tu gerente lo ve al armar el horario.",
       path: ["Tiempo", "Disponible", "Guardar"],
       behind: ["Se guarda en tu cuenta. Solo la ven tú y tu gerente."] },
+    { img: "e15_new_message", x: 50, y: 78, title: "Escribe a alguien",
+      do: "En Chat toca Nuevo mensaje y elige a tu gerente o a un compañero. Si ya tenían una conversación, se abre esa.",
+      path: ["Chat", "Nuevo mensaje", "Persona"],
+      behind: ["Solo aparecen personas activas de tu empresa.", "Cada chat 1 a 1 solo lo ven sus dos participantes."] },
     { img: "e09_chat", x: 90, y: 92, title: "Habla con el equipo",
       do: "El chat General incluye a toda la empresa. También puedes escribir a una persona.",
       path: ["Chat", "General"],
