@@ -185,8 +185,8 @@ class EmployeeHomeScreen extends StatelessWidget {
             if (claimable.isEmpty)
               _PendingCard(
                 color: AppColors.primary,
-                title: t['allClear'],
-                subtitle: t['allClearSub'],
+                title: app.loadingData ? t['loadingData'] : t['allClear'],
+                subtitle: app.loadingData ? t['loadingDataSub'] : t['allClearSub'],
               )
             else
               for (final swap in claimable) ...[

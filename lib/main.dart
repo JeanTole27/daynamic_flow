@@ -30,9 +30,11 @@ Future<void> main() async {
     );
   }
 
-  final prefs = SharedPreferencesAsync();
+  // El mismo almacenamiento que ya cargó Supabase para la sesión: leerlo aquí
+  // es inmediato y no se inicializa un segundo almacenamiento al arrancar.
+  final prefs = await SharedPreferences.getInstance();
   final lang = AppLang.resolve(
-    await prefs.getString(_langKey),
+    prefs.getString(_langKey),
     PlatformDispatcher.instance.locale,
   );
 

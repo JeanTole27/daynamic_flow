@@ -135,7 +135,10 @@ class _EmployeeRow extends StatelessWidget {
                   style: AppTextStyles.sans(size: 15, weight: FontWeight.w600),
                 ),
                 Text(
-                  '${employee.roleFor(app.isEnglish)} · ${employee.hoursLabel}',
+                  [
+                    employee.roleFor(app.isEnglish),
+                    employee.hoursLabel,
+                  ].where((s) => s.isNotEmpty).join(' · '),
                   style: AppTextStyles.sans(size: 12, color: AppColors.muted),
                 ),
               ],

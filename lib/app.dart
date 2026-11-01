@@ -67,6 +67,7 @@ class _TurnosAppState extends State<TurnosApp> {
           title: 'Turnos',
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: rootScaffoldMessengerKey,
+          navigatorKey: rootNavigatorKey,
           theme: AppTheme.light,
           themeMode: ThemeMode.light,
           locale: lang.locale,

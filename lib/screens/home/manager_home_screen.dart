@@ -112,7 +112,7 @@ class ManagerHomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      t['allClear'],
+                      app.loadingData ? t['loadingData'] : t['allClear'],
                       style: AppTextStyles.sans(
                         size: 15,
                         weight: FontWeight.w600,
@@ -120,7 +120,7 @@ class ManagerHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      t['allClearSub'],
+                      app.loadingData ? t['loadingDataSub'] : t['allClearSub'],
                       style: AppTextStyles.sans(
                         size: 12.5,
                         color: AppColors.muted,

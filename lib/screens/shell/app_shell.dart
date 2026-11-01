@@ -86,9 +86,25 @@ class AppShellState extends State<AppShell> {
     final index = _index < tabs.length ? _index : 0;
 
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: [for (final tab in tabs) tab.screen],
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: index,
+            children: [for (final tab in tabs) tab.screen],
+          ),
+          // Primera carga de datos en curso: la app ya se puede usar.
+          if (app.loadingData)
+            Positioned(
+              top: MediaQuery.of(context).padding.top,
+              left: 0,
+              right: 0,
+              child: const LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+                color: AppColors.primary,
+              ),
+            ),
+        ],
       ),
       bottomNavigationBar: _BottomBar(
         labels: [for (final tab in tabs) tab.label],

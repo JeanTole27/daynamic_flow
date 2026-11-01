@@ -316,13 +316,30 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _loadingData = false;
+
+  /// true mientras llega la primera carga de datos tras entrar. Las
+  /// pantallas ya se muestran; solo evitan presentar vacíos como reales.
+  bool get loadingData => _loadingData;
+
+  /// Entra a la app en cuanto se conoce el perfil: los datos se cargan en
+  /// segundo plano en lugar de retener el splash hasta tenerlos todos.
   Future<void> _startSession(SessionUser user) async {
     _session = user;
+    if (user.profile.status == EmployeeStatus.invited) {
+      notifyListeners();
+      return;
+    }
+    _loadingData = true;
     notifyListeners();
-    if (user.profile.status == EmployeeStatus.invited) return;
-    await _loadAll();
     await _changesSub?.cancel();
     _changesSub = _backend!.changes().listen(_onTableChanged);
+    unawaited(
+      _loadAll().whenComplete(() {
+        _loadingData = false;
+        notifyListeners();
+      }),
+    );
   }
 
   void _clearData() {
@@ -350,6 +367,9 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------
 
   Future<void> _loadAll() async {
+    // Todo en paralelo, también las horas: se piden a la vez y se asignan a
+    // los empleados cuando ambos llegan (antes era una vuelta más de red).
+    Map<String, double>? hours;
     await Future.wait([
       _safe(_loadTeam),
       _safe(_loadWeek),
@@ -359,9 +379,21 @@ class AppState extends ChangeNotifier {
       _safe(_loadChat),
       _safe(_loadNotifs),
       _safe(_loadMine),
+      _safe(() async {
+        hours = await _backend!.reports.fetchHours(
+          periodStart,
+          periodEndExclusive,
+        );
+      }),
     ]);
-    // Las horas se asignan a los empleados ya cargados.
-    await _safe(_loadReports);
+    final loaded = hours;
+    if (loaded != null) _applyHours(loaded);
+  }
+
+  void _applyHours(Map<String, double> hours) {
+    for (final e in employees) {
+      e.hoursWorked = hours[e.id] ?? 0;
+    }
   }
 
   void _onTableChanged(String table) {
@@ -465,13 +497,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadReports() async {
-    final hours = await _backend!.reports.fetchHours(
-      periodStart,
-      periodEndExclusive,
+    _applyHours(
+      await _backend!.reports.fetchHours(periodStart, periodEndExclusive),
     );
-    for (final e in employees) {
-      e.hoursWorked = hours[e.id] ?? 0;
-    }
   }
 
   // ---------------------------------------------------------------------
@@ -2106,13 +2134,8 @@ class AppState extends ChangeNotifier {
   // Toast y errores
   // ---------------------------------------------------------------------
 
-  void flash(String message) {
-    final messenger = rootScaffoldMessengerKey.currentState;
-    if (messenger == null) return;
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
+  /// Aviso breve, visible aunque haya un formulario o diálogo abierto.
+  void flash(String message) => showAppToast(message);
 
   void _flashError(AppException e) {
     if (e.code == 'not_authenticated' && !isDemo) {
