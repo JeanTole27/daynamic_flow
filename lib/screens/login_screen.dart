@@ -38,6 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
   /// Correo y empresa del registro que espera confirmación por correo.
   ({String email, String org})? _pendingConfirm;
 
+  /// Recuperar contraseña: formulario abierto y, si ya se pidió, a qué
+  /// correo se envió el enlace.
+  bool _resetting = false;
+  String? _resetSentTo;
+
   @override
   void dispose() {
     _name.dispose();
@@ -105,12 +110,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final t = app.strings;
 
     // Atrás en un formulario vuelve a elegir el rol en lugar de cerrar la app.
-    final inForm = !app.isDemo && (_role != null || _pendingConfirm != null);
+    final inForm =
+        !app.isDemo &&
+        (_role != null || _pendingConfirm != null || _resetting);
 
     return PopScope(
       canPop: !inForm,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || app.busy) return;
+        // Atrás desde recuperar contraseña vuelve al inicio de sesión.
+        if (_resetting) {
+          _leaveReset();
+          return;
+        }
         setState(() => _pendingConfirm = null);
         _chooseRole(null);
       },
@@ -163,6 +175,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ..._demo(app)
                 else if (_pendingConfirm case final pending?)
                   ..._confirmEmail(app, pending)
+                else if (_resetting)
+                  ..._resetForm(app)
                 else if (_role == null)
                   ..._rolePicker(app)
                 else if (_role == UserRole.manager)
@@ -286,6 +300,7 @@ class _LoginScreenState extends State<LoginScreen> {
             : t['signIn'],
         onPressed: app.busy ? null : (_registering ? _signUp : _signIn),
       ),
+      if (!_registering) Center(child: _forgotLink(app)),
     ];
   }
 
@@ -300,10 +315,112 @@ class _LoginScreenState extends State<LoginScreen> {
         label: app.busy ? '…' : t['signIn'],
         onPressed: app.busy ? null : _signIn,
       ),
-      const SizedBox(height: 18),
+      Center(child: _forgotLink(app)),
+      const SizedBox(height: 10),
       Text(t['employeeFirstTime'], style: AppTextStyles.body()),
       const SizedBox(height: 4),
       Center(child: _inviteLink(app)),
+    ];
+  }
+
+  Widget _forgotLink(AppState app) {
+    return TextButton(
+      onPressed: app.busy
+          ? null
+          : () => setState(() {
+              _resetting = true;
+              _resetSentTo = null;
+            }),
+      child: Text(
+        app.strings['forgotPassword'],
+        style: AppTextStyles.sans(
+          size: 13,
+          color: AppColors.primaryText,
+          weight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendReset() async {
+    final app = AppScope.of(context);
+    final ok = await app.requestPasswordReset(_email.text);
+    if (!mounted || !ok) return;
+    setState(() => _resetSentTo = _email.text.trim());
+  }
+
+  void _leaveReset() => setState(() {
+    _resetting = false;
+    _resetSentTo = null;
+  });
+
+  /// Recuperar contraseña: pide el correo y avisa que revise el enlace.
+  List<Widget> _resetForm(AppState app) {
+    final t = app.strings;
+    final sentTo = _resetSentTo;
+    if (sentTo != null) {
+      return [
+        AppCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.mark_email_unread_outlined,
+                color: AppColors.primary,
+                size: 28,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                t['resetSentTitle'],
+                style: AppTextStyles.sans(size: 18, weight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                t.fmt('resetSentBody', {'email': sentTo}),
+                style: AppTextStyles.body(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        SecondaryButton(label: t['backToSignIn'], onPressed: _leaveReset),
+      ];
+    }
+    return [
+      Text(
+        t['resetTitle'].toUpperCase(),
+        style: AppTextStyles.eyebrow(color: AppColors.primaryText),
+      ),
+      const SizedBox(height: 8),
+      Text(t['resetSub'], style: AppTextStyles.body()),
+      const SizedBox(height: 18),
+      _Field(
+        label: t['email'],
+        controller: _email,
+        keyboardType: TextInputType.emailAddress,
+        autofillHints: const [AutofillHints.email],
+        onSubmitted: (_) => _sendReset(),
+      ),
+      const SizedBox(height: 24),
+      PrimaryButton(
+        label: app.busy ? '…' : t['sendLink'],
+        onPressed: app.busy ? null : _sendReset,
+      ),
+      const SizedBox(height: 4),
+      Center(
+        child: TextButton(
+          onPressed: app.busy ? null : _leaveReset,
+          child: Text(
+            t['backToSignIn'],
+            style: AppTextStyles.sans(
+              size: 13,
+              color: AppColors.muted,
+              weight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
     ];
   }
 

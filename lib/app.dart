@@ -5,6 +5,7 @@ import 'i18n/app_lang.dart';
 
 import 'screens/invite_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/new_password_screen.dart';
 import 'screens/shell/app_shell.dart';
 import 'services/backend.dart';
 import 'services/device_services.dart';
@@ -88,6 +89,8 @@ class _StartGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     if (app.isDemo) return const LoginScreen();
+    // Enlace de recuperación de contraseña: primero elegir la nueva.
+    if (app.needsNewPassword) return const NewPasswordScreen();
     if (app.restoring) {
       return const SplashView();
     }

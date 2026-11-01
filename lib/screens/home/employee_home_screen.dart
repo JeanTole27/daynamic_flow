@@ -5,10 +5,12 @@ import '../../i18n/formatters.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/buttons.dart';
 import '../../widgets/pulse_dot.dart';
 import '../../widgets/section_label.dart';
 import '../clock/clock_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../requests/request_sheets.dart';
 
 class EmployeeHomeScreen extends StatelessWidget {
   const EmployeeHomeScreen({super.key});
@@ -179,6 +181,39 @@ class EmployeeHomeScreen extends StatelessWidget {
                   ),
               ],
             ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: SecondaryButton(
+                    label: t['requestDayOffBtn'],
+                    onPressed: () => showDayOffSheet(context),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SecondaryButton(
+                    label: t['notifyLateBtn'],
+                    onPressed: app.lateNoticeShift == null
+                        ? null
+                        : () => showLateSheet(context),
+                  ),
+                ),
+              ],
+            ),
+            if (app.myPendingRequests.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              SectionLabel(t['myRequests']),
+              const SizedBox(height: 8),
+              for (final r in app.myPendingRequests) ...[
+                _PendingCard(
+                  color: AppColors.amber,
+                  title: app.myRequestTitle(r),
+                  subtitle: app.myRequestSubtitle(r),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
             const SizedBox(height: 18),
             SectionLabel(t['pendingYou']),
             const SizedBox(height: 8),

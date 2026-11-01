@@ -46,6 +46,10 @@ class AppState extends ChangeNotifier {
     } else {
       _restoring = true;
       _authSub = backend.auth.onSignedIn.listen((_) => _onSignedIn());
+      _recoverySub = backend.auth.onPasswordRecovery.listen((_) {
+        _needsNewPassword = true;
+        notifyListeners();
+      });
     }
   }
 
@@ -58,12 +62,14 @@ class AppState extends ChangeNotifier {
 
   StreamSubscription<String>? _changesSub;
   StreamSubscription<void>? _authSub;
+  StreamSubscription<void>? _recoverySub;
   Timer? _changesDebounce;
   final Set<String> _dirtyTables = {};
 
   @override
   void dispose() {
     _authSub?.cancel();
+    _recoverySub?.cancel();
     _changesSub?.cancel();
     _changesDebounce?.cancel();
     _lang.dispose();
@@ -202,6 +208,78 @@ class AppState extends ChangeNotifier {
       _busy = false;
       notifyListeners();
     }
+  }
+
+  bool _needsNewPassword = false;
+
+  /// Se abrió el enlace de recuperación: hay que pedir la contraseña nueva
+  /// antes de entrar.
+  bool get needsNewPassword => _needsNewPassword;
+
+  /// Envía el correo de recuperación. Devuelve true si se pidió (también
+  /// cuando el correo no tiene cuenta: no se revela).
+  Future<bool> requestPasswordReset(String email) async {
+    if (!_emailRe.hasMatch(email.trim())) {
+      flash(strings.error('invalid_email'));
+      return false;
+    }
+    final backend = _backend;
+    if (backend == null) return true;
+    _busy = true;
+    notifyListeners();
+    try {
+      await backend.auth.requestPasswordReset(email);
+      return true;
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Guarda la contraseña nueva: tras el enlace de recuperación o desde
+  /// Perfil → Cambiar contraseña. Devuelve true si se guardó.
+  Future<bool> setNewPassword(String password, String confirm) async {
+    if (password.length < 8) {
+      flash(strings['passwordTooShort']);
+      return false;
+    }
+    if (password != confirm) {
+      flash(strings['passwordsDontMatch']);
+      return false;
+    }
+    final backend = _backend;
+    if (backend == null) {
+      flash(strings['passwordChanged']);
+      return true;
+    }
+    _busy = true;
+    notifyListeners();
+    try {
+      await backend.auth.updatePassword(password);
+      flash(strings['passwordChanged']);
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+    if (_needsNewPassword) {
+      _needsNewPassword = false;
+      notifyListeners();
+      // La sesión del enlace ya es válida: entra con el perfil.
+      if (_session == null) await restoreSession();
+    }
+    return true;
+  }
+
+  /// Sale de la pantalla de contraseña nueva sin cambiarla.
+  Future<void> cancelPasswordRecovery() async {
+    _needsNewPassword = false;
+    await logout();
   }
 
   /// Registro de gerente: crea la cuenta y la organización. Si Supabase pide
@@ -1106,6 +1184,11 @@ class AppState extends ChangeNotifier {
       RequestKind.swap => isEnglish
           ? '$who wants to swap a shift'
           : '$who quiere cambiar un turno',
+      // Con motivo = aviso previo del empleado; sin motivo = detectado al
+      // fichar más de 10 min tarde.
+      RequestKind.late when r.reason != null => isEnglish
+          ? '$who will be late'
+          : '$who avisa que llegará tarde',
       RequestKind.late => isEnglish
           ? '$who clocked in late'
           : '$who marcó entrada tarde',
@@ -1129,6 +1212,11 @@ class AppState extends ChangeNotifier {
         return claimer == null
             ? base
             : '$base → ${employeeById(claimer).firstName}';
+      case RequestKind.late when r.reason != null:
+        final when = shift == null
+            ? _dayMonth(r.date)
+            : '${shortDayLabel(shift.startsAt)} · ${Fmt.timeRange(shift.startsAt, shift.endsAt)}';
+        return '$when · ${r.reason}';
       case RequestKind.late:
         TimeEntry? entry;
         for (final e in todayEntries) {
@@ -1147,6 +1235,142 @@ class AppState extends ChangeNotifier {
       if (s.requestId == requestId) return s;
     }
     return null;
+  }
+
+  /// Solicitudes propias aún sin resolver (vista del empleado).
+  List<ShiftRequest> get myPendingRequests =>
+      pendingRequests.where((r) => r.employeeId == me.id).toList();
+
+  /// Turno al que se puede avisar que se llegará tarde: el próximo, si está
+  /// en curso o empieza en las próximas 24 h.
+  Shift? get lateNoticeShift {
+    final s = nextShift;
+    if (s == null) return null;
+    return s.startsAt.isBefore(now.add(const Duration(hours: 24))) ? s : null;
+  }
+
+  /// El empleado pide un día libre. Devuelve true si se envió.
+  Future<bool> requestDayOff(DateTime date, String reason) async {
+    final day = DateUtils.dateOnly(date);
+    final clean = reason.trim();
+    String? error;
+    if (day.isBefore(today) || day.isAfter(_addDays(today, 365))) {
+      error = 'invalid_date';
+    } else if (clean.length > 500) {
+      error = 'reason_too_long';
+    } else if (requests.any(
+      (r) =>
+          r.employeeId == me.id &&
+          r.kind == RequestKind.off &&
+          !r.resolved &&
+          DateUtils.isSameDay(r.date, day),
+    )) {
+      error = 'already_requested';
+    }
+    if (error != null) {
+      flash(strings.error(error));
+      return false;
+    }
+
+    final backend = _backend;
+    if (backend == null) {
+      requests.insert(
+        0,
+        ShiftRequest(
+          id: _localId(),
+          kind: RequestKind.off,
+          employeeId: me.id,
+          date: day,
+          reason: clean.isEmpty ? null : clean,
+        ),
+      );
+      flash(strings['requestSent']);
+      notifyListeners();
+      return true;
+    }
+    try {
+      await backend.shifts.requestDayOff(
+        day,
+        reason: clean.isEmpty ? null : clean,
+      );
+      flash(strings['requestSent']);
+      await _safe(_loadRequests);
+      return true;
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    }
+  }
+
+  /// El empleado avisa que llegará tarde a su próximo turno. Devuelve true
+  /// si se envió.
+  Future<bool> notifyLate(String reason) async {
+    final shift = lateNoticeShift;
+    if (shift == null) {
+      flash(strings.error('late_not_allowed'));
+      return false;
+    }
+    final clean = reason.trim();
+    if (clean.length > 500) {
+      flash(strings.error('reason_too_long'));
+      return false;
+    }
+    if (requests.any(
+      (r) =>
+          r.employeeId == me.id &&
+          r.kind == RequestKind.late &&
+          r.shiftId == shift.id &&
+          r.reason != null,
+    )) {
+      flash(strings.error('already_requested'));
+      return false;
+    }
+
+    final backend = _backend;
+    if (backend == null) {
+      requests.insert(
+        0,
+        ShiftRequest(
+          id: _localId(),
+          kind: RequestKind.late,
+          employeeId: me.id,
+          shiftId: shift.id,
+          date: DateUtils.dateOnly(shift.startsAt),
+          reason: clean.isEmpty ? strings['lateDefaultReason'] : clean,
+        ),
+      );
+      flash(strings['lateSent']);
+      notifyListeners();
+      return true;
+    }
+    try {
+      await backend.shifts.notifyLate(
+        shift.id,
+        reason: clean.isEmpty ? null : clean,
+      );
+      flash(strings['lateSent']);
+      await _safe(_loadRequests);
+      return true;
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    }
+  }
+
+  /// Título de una solicitud propia, vista por el empleado.
+  String myRequestTitle(ShiftRequest r) => switch (r.kind) {
+    RequestKind.off => strings.fmt('reqDayOff', {'date': _dayMonth(r.date)}),
+    RequestKind.late => strings['reqLate'],
+    RequestKind.swap => strings['reqSwap'],
+  };
+
+  String myRequestSubtitle(ShiftRequest r) {
+    final reason = r.reason;
+    return [
+      if (r.kind == RequestKind.late) _dayMonth(r.date),
+      if (reason != null && reason.isNotEmpty) reason,
+      strings['pendingApproval'],
+    ].join(' · ');
   }
 
   void approveRequest(String requestId) => _resolveRequest(requestId, true);

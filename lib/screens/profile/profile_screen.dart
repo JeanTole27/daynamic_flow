@@ -8,6 +8,7 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/chip_button.dart';
 import '../../widgets/section_label.dart';
 import '../login_screen.dart';
+import '../new_password_screen.dart';
 import '../notifications/notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -26,7 +27,14 @@ class ProfileScreen extends StatelessWidget {
         : '${me.roleFor(app.isEnglish)} · ${app.orgName}';
 
     final items = <(String label, VoidCallback onTap)>[
-      (t['changePass'], () => app.flash(t['comingSoon'])),
+      (
+        t['changePass'],
+        () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const NewPasswordScreen(fromProfile: true),
+          ),
+        ),
+      ),
       (
         t['notifications'],
         () => Navigator.of(context).push(

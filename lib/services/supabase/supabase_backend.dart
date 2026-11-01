@@ -118,7 +118,8 @@ Future<T> guard<T>(Future<T> Function() call) async {
       'email_address_invalid' => 'invalid_email',
       'email_not_confirmed' => 'email_not_confirmed',
       'signup_disabled' => 'signup_disabled',
-      'over_request_rate_limit' => 'rate_limited',
+      'over_request_rate_limit' ||
+      'over_email_send_rate_limit' => 'rate_limited',
       _ => 'auth_error',
     });
   } on StorageException {
@@ -282,6 +283,24 @@ class _SupabaseAuth implements AuthService {
       // Un enlace caducado o mal formado llega como error del stream; la
       // pantalla de invitación ya explica qué hacer sin sesión.
       .handleError((_) {});
+
+  @override
+  Future<void> requestPasswordReset(String email) => guard(
+    () => _auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: Env.authRedirectUrl,
+    ),
+  );
+
+  @override
+  Stream<void> get onPasswordRecovery => _auth.onAuthStateChange
+      .where((s) => s.event == AuthChangeEvent.passwordRecovery)
+      .map((_) {})
+      .handleError((_) {});
+
+  @override
+  Future<void> updatePassword(String password) =>
+      guard(() => _auth.updateUser(UserAttributes(password: password)));
 
   @override
   Future<SessionUser> acceptInvite({required String password}) async {
@@ -501,6 +520,27 @@ class _SupabaseShifts implements ShiftsRepository {
           params: {'p_request_id': requestId, 'p_approve': approve},
         );
       });
+
+  @override
+  Future<void> requestDayOff(DateTime date, {String? reason}) =>
+      guard(() async {
+        await ctx.client.rpc(
+          'request_day_off',
+          params: {
+            'p_date':
+                '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+            'p_reason': reason,
+          },
+        );
+      });
+
+  @override
+  Future<void> notifyLate(String shiftId, {String? reason}) => guard(() async {
+    await ctx.client.rpc(
+      'notify_late',
+      params: {'p_shift_id': shiftId, 'p_reason': reason},
+    );
+  });
 
   @override
   Future<List<SwapOffer>> fetchActiveSwaps() => guard(() async {

@@ -345,5 +345,48 @@ void main() {
       await app.setSiteActive(site.id, true);
       expect(app.sites.any((s) => s.id == site.id), isTrue);
     });
+    test('employee requests a day off: valid, duplicate and past', () async {
+      final app = AppState()..loginAs(UserRole.employee);
+      final before = app.myPendingRequests.length;
+      final day = app.today.add(const Duration(days: 4));
+
+      expect(await app.requestDayOff(day, '  Cita médica '), isTrue);
+      expect(app.myPendingRequests.length, before + 1);
+      final created = app.myPendingRequests.first;
+      expect(created.kind, RequestKind.off);
+      expect(created.reason, 'Cita médica');
+
+      expect(await app.requestDayOff(day, ''), isFalse);
+      expect(
+        await app.requestDayOff(app.today.subtract(const Duration(days: 1)), ''),
+        isFalse,
+      );
+      expect(app.myPendingRequests.length, before + 1);
+    });
+
+    test('employee warns they will be late once per shift', () async {
+      final app = AppState()..loginAs(UserRole.employee);
+      final shift = app.lateNoticeShift;
+      expect(shift, isNotNull);
+
+      expect(await app.notifyLate('Unos 10 min'), isTrue);
+      final notice = app.myPendingRequests.first;
+      expect(notice.kind, RequestKind.late);
+      expect(notice.shiftId, shift!.id);
+      // El gerente lo ve como aviso, no como entrada tarde.
+      app.loginAs(UserRole.manager);
+      expect(app.requestTitle(notice), contains('avisa que llegará tarde'));
+
+      app.loginAs(UserRole.employee);
+      expect(await app.notifyLate('otra vez'), isFalse);
+    });
+
+    test('setNewPassword checks length and confirmation', () async {
+      final app = AppState();
+      expect(await app.setNewPassword('corta', 'corta'), isFalse);
+      expect(await app.setNewPassword('larga1234', 'distinta1'), isFalse);
+      expect(await app.setNewPassword('larga1234', 'larga1234'), isTrue);
+      expect(app.needsNewPassword, isFalse);
+    });
   });
 }

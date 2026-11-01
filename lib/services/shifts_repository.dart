@@ -34,6 +34,14 @@ abstract class ShiftsRepository {
 
   Future<void> resolveRequest(String requestId, {required bool approve});
 
+  /// El empleado pide un día libre. El servidor valida la fecha, evita
+  /// duplicados y avisa a los gerentes.
+  Future<void> requestDayOff(DateTime date, {String? reason});
+
+  /// El empleado avisa antes de tiempo que llegará tarde a un turno de las
+  /// próximas 24 h. El servidor avisa a los gerentes.
+  Future<void> notifyLate(String shiftId, {String? reason});
+
   Future<List<SwapOffer>> fetchActiveSwaps();
 
   Future<void> offerShift(String shiftId);

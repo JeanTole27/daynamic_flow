@@ -27,5 +27,16 @@ abstract class AuthService {
   /// no inició ella misma.
   Stream<void> get onSignedIn;
 
+  /// Envía el correo para crear una contraseña nueva. No revela si el
+  /// correo tiene cuenta.
+  Future<void> requestPasswordReset(String email);
+
+  /// Se abrió el enlace de recuperación: hay una sesión temporal y falta
+  /// que la persona elija su contraseña nueva.
+  Stream<void> get onPasswordRecovery;
+
+  /// Cambia la contraseña de la sesión actual.
+  Future<void> updatePassword(String password);
+
   Future<void> signOut();
 }

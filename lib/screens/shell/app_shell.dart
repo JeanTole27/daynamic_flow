@@ -8,6 +8,7 @@ import '../chat/chat_list_screen.dart';
 import '../home/employee_home_screen.dart';
 import '../home/manager_home_screen.dart';
 import '../login_screen.dart';
+import '../new_password_screen.dart';
 import '../more/more_screen.dart';
 import '../profile/profile_screen.dart';
 import '../schedule/my_time_screen.dart';
@@ -59,6 +60,9 @@ class AppShellState extends State<AppShell> {
       });
       return const Scaffold();
     }
+
+    // Se abrió un enlace de recuperación con la sesión ya iniciada.
+    if (app.needsNewPassword) return const NewPasswordScreen();
 
     // Switching role changes the whole tab set — start back at the first
     // tab instead of keeping a numeric index that now points somewhere
