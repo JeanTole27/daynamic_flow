@@ -166,7 +166,7 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
     <p class="lede">El gerente registra su empresa, crea sus sitios y turnos, e invita al equipo. Cada empleado entra por esa invitación y ya queda dentro de la empresa correcta. Elige un rol y mira el recorrido con las pantallas reales.</p>
     <div class="roles" role="tablist" aria-label="Rol">
       <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">14 pasos</span></button>
-      <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">9 pasos</span></button>
+      <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">13 pasos</span></button>
     </div>
   </header>
 
@@ -220,7 +220,9 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
           <tr><td>Fichaje</td><td><code>clock_in()</code> recibe las coordenadas y calcula la distancia al sitio del turno. Rechaza si está fuera del radio, si el GPS tiene más de 100 m de margen o si es una ubicación falsa.</td><td>“Estás a 240 m del sitio. Acércate para marcar”.</td></tr>
           <tr><td>Editar o cancelar turnos</td><td><code>update_shift()</code> y <code>cancel_shift()</code>: solo el gerente, solo turnos que no han empezado y sin fichajes. Duración de 15 min a 16 h.</td><td>Un turno ya empezado se abre en solo lectura; la persona afectada recibe una notificación.</td></tr>
           <tr><td>Turnos que se cruzan</td><td>La base de datos impide dos turnos a la misma hora para la misma persona.</td><td>“Esa persona ya tiene un turno a esa hora”.</td></tr>
-          <tr><td>Solicitudes y cambios</td><td><code>resolve_request()</code>, <code>offer_shift()</code> y <code>claim_swap()</code> validan cada paso; el gerente confirma.</td><td>Notificación a los dos lados.</td></tr>
+          <tr><td>Solicitudes y cambios</td><td><code>request_day_off()</code> y <code>notify_late()</code> (empleado), <code>resolve_request()</code>, <code>offer_shift()</code> y <code>claim_swap()</code> validan cada paso: fechas, duplicados y que el turno sea propio. El gerente confirma.</td><td>Notificación a los dos lados.</td></tr>
+          <tr><td>Avisos de turnos</td><td>Un trigger en la tabla de turnos avisa siempre que alguien recibe, pierde o ve cambiado un turno, venga de donde venga.</td><td>“Te asignaron un turno el 01/11 09:00”.</td></tr>
+          <tr><td>Contraseñas</td><td>Recuperación con enlace al correo; la contraseña nueva se pide antes de entrar.</td><td>No revela si un correo tiene cuenta.</td></tr>
           <tr><td>Desactivar</td><td>Un perfil o sitio inactivo pierde el acceso, pero el historial se conserva.</td><td>La persona no puede entrar; el sitio deja de aceptar fichajes.</td></tr>
           <tr><td>Fotos de evidencia</td><td>Bucket privado <code>work-evidence</code>, en la carpeta empresa/empleado.</td><td>Solo la ven el empleado y su gerente.</td></tr>
         </tbody>
@@ -282,10 +284,10 @@ const STEPS = {
       do: "La persona aparece en tu equipo con la etiqueta INVITADO hasta que abra el enlace del correo.",
       path: ["Equipo"],
       behind: ["Cuando el empleado crea su contraseña, la etiqueta cambia a ACTIVO sola."] },
-    { img: "m04_home", x: 29, y: 36.5, title: "Aprueba solicitudes",
-      do: "En Hoy ves cuántos trabajan ahora, los turnos sin cubrir y las solicitudes pendientes. Aprueba o rechaza con un toque.",
+    { img: "m04_home", x: 29, y: 36.3, title: "Aprueba solicitudes",
+      do: "En Hoy ves cuántos trabajan ahora, los turnos sin cubrir y las solicitudes pendientes: días libres, avisos de llegada tarde, entradas tarde y cambios de turno. Aprueba o rechaza con un toque.",
       path: ["Hoy", "Aprobar"],
-      behind: ["<code>resolve_request()</code> valida la solicitud en el servidor y avisa al empleado."] },
+      behind: ["Cuando un empleado pide libre o avisa que llegará tarde, te llega una notificación.", "<code>resolve_request()</code> valida la solicitud en el servidor y avisa al empleado. Al aprobar un día libre, sus turnos de ese día quedan sin cubrir.", "Una entrada con más de 10 min de retraso se registra sola como solicitud."] },
     { img: "m14_reports", x: 49, y: 18.3, title: "Revisa horas y costos",
       do: "En Más → Reportes eliges el periodo (esta quincena, la anterior, este mes o el anterior) y ves las horas, los fichajes y el costo estimado de cada persona.",
       path: ["Más", "Reportes", "Periodo"],
@@ -301,14 +303,31 @@ const STEPS = {
       path: ["Correo", "Enlace", "Crear cuenta"],
       behind: ["El enlace inicia tu sesión en la app.", "<code>accept_invite()</code> cambia tu perfil de invitado a activo.", "Ya perteneces a la empresa de tu gerente: no tienes que elegirla."],
       tip: "Abre el enlace <b>en el mismo celular</b> donde está instalada la app." },
-    { img: "e02_login", x: 50, y: 64, title: "Las siguientes veces",
-      do: "Elige Empleado y entra con tu correo y contraseña.",
+    { img: "e02_login", x: 50, y: 61.6, title: "Las siguientes veces",
+      do: "Elige Empleado y entra con tu correo y contraseña. Debajo está ¿Olvidaste tu contraseña? por si no la recuerdas.",
       path: ["Empleado", "Entrar"],
       behind: ["La sesión queda guardada; no tendrás que escribirla cada vez."] },
-    { img: "e03_home", x: 50, y: 39, title: "Mira tu próximo turno",
-      do: "En Hoy ves tu próximo turno, tu semana y lo que requiere tu atención.",
+    { img: "e14_forgot", x: 50, y: 53.2, title: "¿Olvidaste tu contraseña?",
+      do: "Debajo de Entrar toca ¿Olvidaste tu contraseña?, escribe tu correo y toca Enviar enlace.",
+      path: ["Entrar", "¿Olvidaste tu contraseña?", "Enviar enlace"],
+      behind: ["Supabase envía un enlace de recuperación al correo.", "Por seguridad, la app no dice si ese correo tiene cuenta."],
+      tip: "Abre el enlace <b>en el mismo celular</b> donde pediste el cambio." },
+    { img: "e13_newpass", x: 50, y: 44, title: "Crea tu contraseña nueva",
+      do: "Al abrir el enlace, la app te pide la contraseña nueva (mínimo 8 caracteres) antes de entrar. También puedes cambiarla cuando quieras en Perfil → Cambiar contraseña.",
+      path: ["Enlace del correo", "Nueva contraseña", "Guardar"],
+      behind: ["El enlace abre una sesión temporal solo para elegir la contraseña.", "Funciona aunque la app estuviera cerrada."] },
+    { img: "e03_home", x: 27, y: 57.4, title: "Mira tu próximo turno",
+      do: "En Hoy ves tu próximo turno, tu semana, tus solicitudes pendientes y lo que requiere tu atención. Desde aquí también pides un día libre o avisas que llegarás tarde.",
       path: ["Hoy"],
       behind: ["Solo ves tus turnos y los de tu empresa."] },
+    { img: "e11_dayoff", x: 50, y: 73.5, title: "Pide un día libre",
+      do: "Toca Pedir día libre, elige la fecha en el calendario y, si quieres, escribe el motivo. Toca Enviar solicitud.",
+      path: ["Hoy", "Pedir día libre", "Enviar solicitud"],
+      behind: ["<code>request_day_off()</code> acepta fechas de hoy a un año y evita pedir dos veces el mismo día.", "Tu gerente recibe un aviso; la solicitud queda en Tus solicitudes hasta que la resuelva."] },
+    { img: "e10_late", x: 17, y: 74, title: "Avisa que llegarás tarde",
+      do: "Toca Llegaré tarde. Verás el turno al que aplica; elige Unos 10 min, Unos 30 min o Más de 1 hora, o escribe el motivo. Toca Enviar aviso.",
+      path: ["Hoy", "Llegaré tarde", "Enviar aviso"],
+      behind: ["<code>notify_late()</code> solo acepta tu turno en curso o de las próximas 24 h, una vez por turno.", "Tu gerente lo ve como aviso, separado de la entrada tarde que se registra al fichar."] },
     { img: "e04_clock", x: 50, y: 87, title: "Marca entrada",
       do: "Al llegar al sitio, toca Marcar entrada. La app indica si estás dentro del sitio.",
       path: ["Hoy", "Marcar entrada"],
