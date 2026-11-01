@@ -6,6 +6,7 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/buttons.dart';
+import 'fix_entry_sheet.dart';
 
 class LiveScreen extends StatelessWidget {
   const LiveScreen({super.key});
@@ -44,9 +45,7 @@ class LiveScreen extends StatelessWidget {
             const SizedBox(height: 8),
             SecondaryButton(
               label: t['fixClock'],
-              onPressed: app.liveBoard.isEmpty
-                  ? null
-                  : () => app.fixClockEntry(app.liveBoard.first.employeeId),
+              onPressed: () => showPickEntryToFix(context),
             ),
           ],
         ),

@@ -9,6 +9,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/buttons.dart';
 import '../chat/chat_screen.dart';
+import 'edit_member_sheet.dart';
 
 class MemberDetailScreen extends StatelessWidget {
   const MemberDetailScreen({super.key, required this.employeeId});
@@ -172,6 +173,13 @@ class MemberDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            if (app.role == UserRole.manager) ...[
+              SecondaryButton(
+                label: t['editMember'],
+                onPressed: () => showEditMemberSheet(context, emp),
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               children: [
                 Expanded(
@@ -203,6 +211,36 @@ class MemberDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
+            // Invitación pendiente: reenviar el correo o anularla.
+            if (app.role == UserRole.manager &&
+                emp.status == EmployeeStatus.invited) ...[
+              const SizedBox(height: 14),
+              Text(
+                t.fmt('invitePendingFor', {'email': emp.email}),
+                style: AppTextStyles.sans(size: 13, color: AppColors.muted),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: SecondaryButton(
+                      label: t['resendInvite'],
+                      onPressed: () => app.resendInvite(emp.id),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DangerOutlineButton(
+                      label: t['cancelInvite'],
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+                        if (await app.cancelInvite(emp.id)) navigator.pop();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

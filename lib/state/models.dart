@@ -206,12 +206,17 @@ class ReportEntry {
     this.clockOutAt,
     this.clockOutOutside = false,
     this.photoCount = 0,
+    this.correctionNote,
   });
 
   final String id;
   final String employeeId;
   final String siteId;
   final DateTime clockInAt;
+
+  /// Motivo si el gerente corrigió el fichaje; null si no.
+  final String? correctionNote;
+  bool get corrected => correctionNote != null;
 
   /// null = sigue en turno.
   final DateTime? clockOutAt;

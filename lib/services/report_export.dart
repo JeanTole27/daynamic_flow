@@ -357,6 +357,7 @@ Future<Uint8List> buildReportPdf(ReportExportData data) {
                   hours(data.hoursOf(e.$2)),
                   [
                     if (e.$2.clockOutOutside) t['outsideShort'],
+                    if (e.$2.corrected) t['corrected'],
                     if (e.$2.photoCount > 0)
                       t.fmt('photosCount', {'n': e.$2.photoCount}),
                   ].join(' · '),

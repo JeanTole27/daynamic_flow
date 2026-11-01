@@ -22,7 +22,26 @@ class ChatListScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
           children: [
-            Text(t['chat'], style: AppTextStyles.h1()),
+            Row(
+              children: [
+                Expanded(child: Text(t['chat'], style: AppTextStyles.h1())),
+                TextButton.icon(
+                  onPressed: () => _newMessage(context),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: Text(
+                    t['newMessage'],
+                    style: AppTextStyles.sans(
+                      size: 13.5,
+                      weight: FontWeight.w600,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryText,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 14),
             for (final thread in app.threads) ...[
               _ThreadRow(thread: thread),
@@ -33,6 +52,100 @@ class ChatListScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Elegir con quién hablar: gerente o compañeros activos.
+Future<void> _newMessage(BuildContext context) {
+  return showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      final app = AppScope.of(sheetContext);
+      final t = app.strings;
+      final people =
+          app.activeEmployees.where((e) => e.id != app.me.id).toList()
+            ..sort((a, b) {
+              // Primero los gerentes.
+              if (a.role != b.role) return a.role == UserRole.manager ? -1 : 1;
+              return a.name.compareTo(b.name);
+            });
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
+        ),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(top: BorderSide(color: AppColors.borderStrong)),
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+            children: [
+              Text(
+                t['newMessage'],
+                style: AppTextStyles.sans(size: 21, weight: FontWeight.w700),
+              ),
+              const SizedBox(height: 14),
+              if (people.isEmpty)
+                Text(t['noOneToMessage'], style: AppTextStyles.body()),
+              for (final p in people) ...[
+                AppCard(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+                  onTap: () async {
+                    final navigator = Navigator.of(sheetContext);
+                    final id = await app.openDirectThreadWith(p.id);
+                    navigator.pop();
+                    if (id == null) return;
+                    navigator.push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(threadKey: id, title: p.name),
+                      ),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      InitialsAvatar(
+                        initials: p.initials,
+                        paletteIndex: p.avatarIndex,
+                        size: 36,
+                        fontSize: 12,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.name,
+                              style: AppTextStyles.sans(
+                                size: 14.5,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              p.roleFor(app.isEnglish),
+                              style: AppTextStyles.sans(
+                                size: 12.5,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _ThreadRow extends StatelessWidget {

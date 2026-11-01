@@ -19,6 +19,16 @@ abstract class TimeClockService {
 
   Future<List<WorkPhoto>> fetchWorkPhotos(String timeEntryId);
 
+  /// El gerente corrige la entrada y la salida de un fichaje, con motivo.
+  /// El servidor valida las horas, guarda quién corrigió y avisa al
+  /// empleado.
+  Future<void> fixEntry({
+    required String entryId,
+    required DateTime clockIn,
+    required DateTime clockOut,
+    required String note,
+  });
+
   /// Sube una foto de evidencia al fichaje abierto.
   Future<WorkPhoto> uploadWorkPhoto({
     required String timeEntryId,

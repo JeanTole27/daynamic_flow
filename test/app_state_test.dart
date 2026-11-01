@@ -388,5 +388,104 @@ void main() {
       expect(await app.setNewPassword('larga1234', 'larga1234'), isTrue);
       expect(app.needsNewPassword, isFalse);
     });
+    test('updateEmployee changes position and rate, not own role', () async {
+      final app = AppState();
+      final emp = app.assignableEmployees.first;
+
+      expect(
+        await app.updateEmployee(
+          employeeId: emp.id,
+          fullName: emp.name,
+          position: 'Supervisora',
+          hourlyRate: 9000,
+          role: UserRole.employee,
+        ),
+        isTrue,
+      );
+      final updated = app.employeeById(emp.id);
+      expect(updated.roleFor(false), 'Supervisora');
+      expect(updated.hourlyRate, 9000);
+
+      expect(
+        await app.updateEmployee(
+          employeeId: emp.id,
+          fullName: emp.name,
+          position: 'X',
+          hourlyRate: -5,
+          role: UserRole.employee,
+        ),
+        isFalse,
+      );
+      expect(
+        await app.updateEmployee(
+          employeeId: app.me.id,
+          fullName: app.me.name,
+          position: '',
+          hourlyRate: 0,
+          role: UserRole.employee,
+        ),
+        isFalse,
+      );
+    });
+
+    test('fixTimeEntry closes an entry and requires a reason', () async {
+      final app = AppState();
+      final entry = app.fixableEntries.first;
+      final start = entry.clockInAt;
+
+      expect(
+        await app.fixTimeEntry(
+          entryId: entry.id,
+          clockIn: start,
+          clockOut: start.add(const Duration(hours: 1)),
+          note: '  ',
+        ),
+        isFalse,
+      );
+      expect(
+        await app.fixTimeEntry(
+          entryId: entry.id,
+          clockIn: start,
+          clockOut: start.subtract(const Duration(hours: 1)),
+          note: 'x',
+        ),
+        isFalse,
+      );
+      final out = start.add(const Duration(minutes: 30));
+      expect(
+        await app.fixTimeEntry(
+          entryId: entry.id,
+          clockIn: start,
+          clockOut: out,
+          note: 'Olvidó marcar salida',
+        ),
+        isTrue,
+      );
+      final fixed = app.todayEntries.firstWhere((e) => e.id == entry.id);
+      expect(fixed.clockOutAt, out);
+    });
+
+    test('cancelInvite removes an invited person', () async {
+      final app = AppState();
+      await app.inviteEmployee(
+        name: 'Nueva Persona',
+        email: 'nueva@ejemplo.co',
+        position: 'Mesera',
+        hourlyRate: 6000,
+      );
+      final invited = app.employees.firstWhere(
+        (e) => e.status == EmployeeStatus.invited,
+      );
+
+      expect(await app.cancelInvite(invited.id), isTrue);
+      expect(app.employees.any((e) => e.id == invited.id), isFalse);
+    });
+
+    test('the only manager is flagged before deleting the account', () {
+      final app = AppState();
+      expect(app.isSoleManager, isTrue);
+      app.loginAs(UserRole.employee);
+      expect(app.isSoleManager, isFalse);
+    });
   });
 }

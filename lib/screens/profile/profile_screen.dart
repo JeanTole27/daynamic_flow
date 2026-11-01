@@ -10,6 +10,7 @@ import '../../widgets/section_label.dart';
 import '../login_screen.dart';
 import '../new_password_screen.dart';
 import '../notifications/notifications_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -41,7 +42,12 @@ class ProfileScreen extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const NotificationsScreen()),
         ),
       ),
-      (t['settings'], () => app.flash(t['comingSoon'])),
+      (
+        t['settings'],
+        () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        ),
+      ),
     ];
 
     return Scaffold(

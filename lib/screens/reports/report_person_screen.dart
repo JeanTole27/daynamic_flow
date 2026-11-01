@@ -9,6 +9,7 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/buttons.dart';
+import 'entry_detail_sheet.dart';
 
 /// Detalle de una persona en el periodo del reporte: totales y cada
 /// fichaje con su sitio, horas, fotos y si salió fuera del sitio.
@@ -135,12 +136,14 @@ class ReportPersonScreen extends StatelessWidget {
                   tags: [
                     if (e.isOpen) (t['inProgress'], AppColors.primaryText),
                     if (e.clockOutOutside) (t['outsideShort'], AppColors.amber),
+                    if (e.corrected) (t['corrected'], AppColors.primaryText),
                     if (e.photoCount > 0)
                       (
                         t.fmt('photosCount', {'n': e.photoCount}),
                         AppColors.muted,
                       ),
                   ],
+                  onTap: () => showEntryDetailSheet(context, e),
                 ),
                 const SizedBox(height: 6),
               ],
@@ -201,6 +204,7 @@ class _EntryCard extends StatelessWidget {
     required this.range,
     required this.worked,
     required this.tags,
+    required this.onTap,
   });
 
   final String site;
@@ -208,9 +212,13 @@ class _EntryCard extends StatelessWidget {
   final String worked;
   final List<(String, Color)> tags;
 
+  /// Abre el detalle: fotos y corregir.
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      onTap: onTap,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

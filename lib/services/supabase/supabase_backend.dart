@@ -303,6 +303,18 @@ class _SupabaseAuth implements AuthService {
       guard(() => _auth.updateUser(UserAttributes(password: password)));
 
   @override
+  Future<void> deleteAccount() async {
+    await guard(() => ctx.client.functions.invoke('delete-account'));
+    // El usuario ya no existe: se descarta la sesión local.
+    ctx.clear();
+    try {
+      await _auth.signOut(scope: SignOutScope.local);
+    } on Object {
+      // Nada que hacer: la cuenta ya se borró en el servidor.
+    }
+  }
+
+  @override
   Future<SessionUser> acceptInvite({required String password}) async {
     if (_auth.currentSession == null) {
       throw const AppException('invite_link_required');
@@ -407,6 +419,43 @@ class _SupabaseTeam implements TeamRepository {
             .update({'status': status.name})
             .eq('id', employeeId);
       });
+
+  @override
+  Future<void> resendInvite(String employeeId) => guard(() async {
+    await ctx.client.functions.invoke(
+      'invite-employee',
+      body: {'action': 'resend', 'employee_id': employeeId},
+    );
+  });
+
+  @override
+  Future<void> cancelInvite(String employeeId) => guard(() async {
+    await ctx.client.functions.invoke(
+      'invite-employee',
+      body: {'action': 'cancel', 'employee_id': employeeId},
+    );
+  });
+
+  @override
+  Future<void> updateEmployee({
+    required String employeeId,
+    required String fullName,
+    required String positionEs,
+    required String positionEn,
+    required double hourlyRate,
+    required UserRole role,
+  }) => guard(() async {
+    await ctx.client
+        .from('profiles')
+        .update({
+          'full_name': fullName,
+          'position_es': positionEs,
+          'position_en': positionEn,
+          'hourly_rate': hourlyRate,
+          'role': role.name,
+        })
+        .eq('id', employeeId);
+  });
 }
 
 // -----------------------------------------------------------------------
@@ -652,6 +701,24 @@ class _SupabaseClock implements TimeClockService {
             .order('clock_in_at');
         return rows.map(_entry).toList();
       });
+
+  @override
+  Future<void> fixEntry({
+    required String entryId,
+    required DateTime clockIn,
+    required DateTime clockOut,
+    required String note,
+  }) => guard(() async {
+    await ctx.client.rpc(
+      'fix_time_entry',
+      params: {
+        'p_entry_id': entryId,
+        'p_clock_in': _iso(clockIn),
+        'p_clock_out': _iso(clockOut),
+        'p_note': note,
+      },
+    );
+  });
 
   @override
   Future<List<WorkPhoto>> fetchWorkPhotos(String timeEntryId) =>
@@ -904,7 +971,7 @@ class _SupabaseReports implements ReportsService {
             .from('time_entries')
             .select(
               'id, employee_id, site_id, clock_in_at, clock_out_at, '
-              'clock_out_outside, work_photos(count)',
+              'clock_out_outside, correction_note, work_photos(count)',
             )
             .lt('clock_in_at', _iso(to))
             .or('clock_out_at.is.null,clock_out_at.gt.${_iso(from)}')
@@ -918,6 +985,7 @@ class _SupabaseReports implements ReportsService {
               clockInAt: _date(r['clock_in_at']),
               clockOutAt: _dateOrNull(r['clock_out_at']),
               clockOutOutside: r['clock_out_outside'] as bool? ?? false,
+              correctionNote: r['correction_note'] as String?,
               photoCount: switch (r['work_photos']) {
                 [{'count': final num n}, ...] => n.toInt(),
                 _ => 0,

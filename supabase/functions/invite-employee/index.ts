@@ -59,6 +59,35 @@ Deno.serve(async (req) => {
   } catch {
     return json(400, { error: "invalid_body" });
   }
+
+  // Reenviar o cancelar una invitación que aún no se aceptó.
+  if (body.action === "resend" || body.action === "cancel") {
+    const { data: invitee } = await admin
+      .from("profiles")
+      .select("id, email, org_id, status")
+      .eq("id", String(body.employee_id ?? ""))
+      .maybeSingle();
+    if (!invitee || invitee.org_id !== caller.org_id) {
+      return json(404, { error: "invite_not_found" });
+    }
+    if (invitee.status !== "invited") {
+      return json(409, { error: "invite_already_accepted" });
+    }
+    if (body.action === "resend") {
+      // Con el usuario aún sin confirmar, Supabase vuelve a enviar el correo.
+      const { error } = await admin.auth.admin.inviteUserByEmail(
+        invitee.email,
+        { redirectTo: Deno.env.get("INVITE_REDIRECT_URL") ?? undefined },
+      );
+      if (error) return json(500, { error: "invite_failed" });
+      return json(200, { id: invitee.id });
+    }
+    // Cancelar: el perfil se borra en cascada con el usuario.
+    const { error } = await admin.auth.admin.deleteUser(invitee.id);
+    if (error) return json(500, { error: "invite_failed" });
+    return json(200, { id: invitee.id });
+  }
+
   const email = String(body.email ?? "").trim().toLowerCase();
   const fullName = String(body.full_name ?? "").trim();
   const positionEs = String(body.position_es ?? "").trim();

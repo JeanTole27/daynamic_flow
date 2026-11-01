@@ -38,5 +38,9 @@ abstract class AuthService {
   /// Cambia la contraseña de la sesión actual.
   Future<void> updatePassword(String password);
 
+  /// Borra la cuenta de quien la usa (y cierra la sesión). Si es el único
+  /// gerente, el servidor borra la empresa completa.
+  Future<void> deleteAccount();
+
   Future<void> signOut();
 }

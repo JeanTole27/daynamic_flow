@@ -394,6 +394,42 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Único gerente activo: si borra su cuenta, se borra la empresa.
+  bool get isSoleManager =>
+      role == UserRole.manager &&
+      !activeEmployees.any(
+        (e) => e.role == UserRole.manager && e.id != me.id,
+      );
+
+  /// Borra la cuenta (requisito de Google Play) y cierra la sesión.
+  /// Devuelve true si se borró.
+  Future<bool> deleteAccount() async {
+    final backend = _backend;
+    if (backend == null) {
+      flash(strings['accountDeleted']);
+      await logout();
+      return true;
+    }
+    _busy = true;
+    notifyListeners();
+    try {
+      await backend.auth.deleteAccount();
+    } on AppException catch (e) {
+      _flashError(e);
+      _busy = false;
+      notifyListeners();
+      return false;
+    }
+    _busy = false;
+    await _changesSub?.cancel();
+    _changesSub = null;
+    _session = null;
+    _clearData();
+    flash(strings['accountDeleted']);
+    notifyListeners();
+    return true;
+  }
+
   bool _loadingData = false;
 
   /// true mientras llega la primera carga de datos tras entrar. Las
@@ -730,6 +766,113 @@ class AppState extends ChangeNotifier {
       return true;
     } on AppException catch (e) {
       _flashError(e);
+      return false;
+    }
+  }
+
+  /// Vuelve a enviar la invitación a alguien que aún no la aceptó.
+  Future<bool> resendInvite(String employeeId) async {
+    final backend = _backend;
+    if (backend == null) {
+      flash(strings['inviteResent']);
+      return true;
+    }
+    try {
+      await backend.team.resendInvite(employeeId);
+      flash(strings['inviteResent']);
+      return true;
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    }
+  }
+
+  /// Anula una invitación pendiente: la persona sale del equipo.
+  Future<bool> cancelInvite(String employeeId) async {
+    final backend = _backend;
+    if (backend != null) {
+      try {
+        await backend.team.cancelInvite(employeeId);
+      } on AppException catch (e) {
+        _flashError(e);
+        return false;
+      }
+    }
+    employees.removeWhere((e) => e.id == employeeId);
+    flash(strings['inviteCancelled']);
+    notifyListeners();
+    return true;
+  }
+
+  /// El gerente cambia nombre, cargo, tarifa o rol de alguien del equipo.
+  /// Devuelve true si se guardó.
+  Future<bool> updateEmployee({
+    required String employeeId,
+    required String fullName,
+    required String position,
+    required double? hourlyRate,
+    required UserRole role,
+  }) async {
+    final name = fullName.trim();
+    final pos = position.trim();
+    String? error;
+    if (name.isEmpty || name.length > 120) {
+      error = 'invalid_name';
+    } else if (pos.length > 60) {
+      error = 'invalid_position';
+    } else if (hourlyRate == null ||
+        hourlyRate.isNaN ||
+        hourlyRate < 0 ||
+        hourlyRate > 10000000) {
+      error = 'invalid_rate';
+    } else if (employeeId == me.id && role != me.role) {
+      error = 'cannot_change_own_role';
+    }
+    if (error != null) {
+      flash(strings.error(error));
+      return false;
+    }
+
+    final index = employees.indexWhere((e) => e.id == employeeId);
+    if (index < 0) return false;
+    final previous = employees[index];
+    // El cargo se guarda igual en los dos idiomas salvo que ya fueran
+    // distintos y no se haya tocado.
+    final unchanged = pos == previous.roleFor(isEnglish);
+    final posEs = unchanged ? previous.roleEs : pos;
+    final posEn = unchanged ? previous.roleEn : pos;
+    employees[index] = Employee(
+      id: previous.id,
+      name: name,
+      email: previous.email,
+      role: role,
+      roleEs: posEs,
+      roleEn: posEn,
+      hourlyRate: hourlyRate!,
+      status: previous.status,
+      avatarIndex: previous.avatarIndex,
+      hoursWorked: previous.hoursWorked,
+    );
+    flash(strings['saveOk']);
+    notifyListeners();
+
+    final backend = _backend;
+    if (backend == null) return true;
+    try {
+      await backend.team.updateEmployee(
+        employeeId: employeeId,
+        fullName: name,
+        positionEs: posEs,
+        positionEn: posEn,
+        hourlyRate: hourlyRate,
+        role: role,
+      );
+      return true;
+    } on AppException catch (e) {
+      final i = employees.indexWhere((x) => x.id == employeeId);
+      if (i >= 0) employees[i] = previous;
+      _flashError(e);
+      notifyListeners();
       return false;
     }
   }
@@ -1865,6 +2008,21 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------
 
   List<WorkPhoto> workPhotos = [];
+
+  /// Fotos de evidencia de cualquier fichaje de la empresa (vista del
+  /// gerente en Reportes). URLs firmadas y temporales.
+  Future<List<WorkPhoto>> photosOf(String entryId) async {
+    final backend = _backend;
+    if (backend == null) {
+      return workPhotos.where((p) => p.timeEntryId == entryId).toList();
+    }
+    try {
+      return await backend.clock.fetchWorkPhotos(entryId);
+    } on AppException catch (e) {
+      _flashError(e);
+      return const [];
+    }
+  }
   bool uploadingPhoto = false;
 
   static const int maxPhotoBytes = 5 * 1024 * 1024;
@@ -1998,8 +2156,83 @@ class AppState extends ChangeNotifier {
   /// PENDIENTE: no hay pantalla para editar un fichaje todavía. En el
   /// servidor haría falta una función `correct_time_entry` solo para
   /// gerentes, que deje registro de quién corrigió.
-  void fixClockEntry(String employeeId) =>
-      flash(isDemo ? strings['saveOk'] : strings['comingSoon']);
+  /// Fichajes de hoy, del más reciente al más antiguo: los que se pueden
+  /// corregir desde "Quién trabaja hoy".
+  List<TimeEntry> get fixableEntries =>
+      [...todayEntries]..sort((a, b) => b.clockInAt.compareTo(a.clockInAt));
+
+  /// El gerente corrige entrada y salida de un fichaje, con motivo
+  /// obligatorio. Devuelve true si se guardó.
+  Future<bool> fixTimeEntry({
+    required String entryId,
+    required DateTime clockIn,
+    required DateTime clockOut,
+    required String note,
+  }) async {
+    final clean = note.trim();
+    String? error;
+    if (clean.isEmpty || clean.length > 500) {
+      error = 'correction_note_required';
+    } else if (!clockOut.isAfter(clockIn) ||
+        clockOut.isAfter(now.add(const Duration(minutes: 1))) ||
+        clockOut.difference(clockIn) > const Duration(hours: 24)) {
+      error = 'invalid_entry_times';
+    }
+    if (error != null) {
+      flash(strings.error(error));
+      return false;
+    }
+
+    final backend = _backend;
+    if (backend == null) {
+      final i = todayEntries.indexWhere((e) => e.id == entryId);
+      if (i >= 0) {
+        final old = todayEntries[i];
+        todayEntries[i] = TimeEntry(
+          id: old.id,
+          employeeId: old.employeeId,
+          siteId: old.siteId,
+          shiftId: old.shiftId,
+          clockInAt: clockIn,
+          clockOutAt: clockOut,
+        );
+      }
+      _demoReportEntries = [
+        for (final e in _demoReportEntries)
+          e.id == entryId
+              ? ReportEntry(
+                  id: e.id,
+                  employeeId: e.employeeId,
+                  siteId: e.siteId,
+                  clockInAt: clockIn,
+                  clockOutAt: clockOut,
+                  photoCount: e.photoCount,
+                  correctionNote: clean,
+                )
+              : e,
+      ];
+      if (_reportEntries != null) await loadReport();
+      flash(strings['entryFixed']);
+      notifyListeners();
+      return true;
+    }
+    try {
+      await backend.clock.fixEntry(
+        entryId: entryId,
+        clockIn: clockIn,
+        clockOut: clockOut,
+        note: clean,
+      );
+      flash(strings['entryFixed']);
+      await _safe(_loadClock);
+      await _safe(_loadReports);
+      if (_reportEntries != null) await loadReport();
+      return true;
+    } on AppException catch (e) {
+      _flashError(e);
+      return false;
+    }
+  }
 
   // ---------------------------------------------------------------------
   // Chat
