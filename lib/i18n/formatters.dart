@@ -41,6 +41,14 @@ class Fmt {
     AppLang.en => '${_weekdaysEn[d.weekday - 1]}, ${_monthsEn[d.month - 1]} ${d.day}',
   };
 
+  /// "lun 7 sep" / "Mon, Sep 7"
+  static String shortDate(DateTime d, AppLang lang) => switch (lang) {
+    AppLang.es =>
+      '${_weekdaysEs[d.weekday - 1].substring(0, 3).toLowerCase()} ${d.day} ${_shortMonth(d.month, lang)}',
+    AppLang.en =>
+      '${_weekdaysEn[d.weekday - 1].substring(0, 3)}, ${_shortMonth(d.month, lang)} ${d.day}',
+  };
+
   static String _shortMonth(int month, AppLang lang) => switch (lang) {
     AppLang.es => _monthsEs[month - 1].substring(0, 3),
     AppLang.en => _monthsEn[month - 1].substring(0, 3),

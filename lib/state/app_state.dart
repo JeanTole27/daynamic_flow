@@ -9,6 +9,7 @@ import '../i18n/app_lang.dart';
 import '../i18n/app_strings.dart';
 import '../i18n/formatters.dart';
 import '../services/backend.dart';
+import '../services/report_export.dart';
 import '../services/device_services.dart';
 import 'app_scaffold_messenger.dart';
 import 'models.dart';
@@ -326,6 +327,8 @@ class AppState extends ChangeNotifier {
 
   void _clearData() {
     employees = [];
+    _reportEntries = null;
+    _demoReportEntries = [];
     allSites = [];
     shifts = [];
     week.clear();
@@ -379,6 +382,8 @@ class AppState extends ChangeNotifier {
       ]);
       if (tables.contains('time_entries') || tables.contains('profiles')) {
         await _safe(_loadReports);
+        // Si la pantalla de reportes ya cargó su periodo, se refresca.
+        if (_reportEntries != null) await loadReport();
       }
     });
   }
@@ -1939,38 +1944,163 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------
-  // Reportes (quincena actual)
+  // Reportes
   // ---------------------------------------------------------------------
 
-  static const double overtimeThresholdHours = 65;
+  /// Quincena actual: es la que se usa para las horas del equipo.
+  DateTime get periodStart => ReportPeriod.currentFortnight.range(today).$1;
+  DateTime get periodEndExclusive =>
+      ReportPeriod.currentFortnight.range(today).$2;
 
-  DateTime get periodStart =>
-      DateTime(today.year, today.month, today.day <= 15 ? 1 : 16);
+  ReportPeriod _reportPeriod = ReportPeriod.currentFortnight;
+  ReportPeriod get reportPeriod => _reportPeriod;
 
-  DateTime get periodEndExclusive => today.day <= 15
-      ? DateTime(today.year, today.month, 16)
-      : DateTime(today.year, today.month + 1, 1);
+  /// Fichajes del periodo elegido. null = aún no se han cargado.
+  List<ReportEntry>? _reportEntries;
+  bool get reportLoading => _reportEntries == null;
 
-  String get periodLabel => Fmt.periodRange(
-    periodStart,
-    _addDays(periodEndExclusive, -1),
+  /// Solo en el demo: fichajes de ejemplo de las dos últimas quincenas.
+  List<ReportEntry> _demoReportEntries = [];
+
+  (DateTime, DateTime) get reportRange => _reportPeriod.range(today);
+
+  String get reportPeriodLabel => Fmt.periodRange(
+    reportRange.$1,
+    _addDays(reportRange.$2, -1),
     lang,
   );
 
-  double get totalHours => employees.fold(0, (a, e) => a + e.hoursWorked);
+  Future<void> setReportPeriod(ReportPeriod period) async {
+    if (period == _reportPeriod && _reportEntries != null) return;
+    _reportPeriod = period;
+    _reportEntries = null;
+    notifyListeners();
+    await loadReport();
+  }
 
-  String get totalHoursLabel => '${totalHours.round()}h';
+  /// Carga los fichajes del periodo elegido.
+  Future<void> loadReport() async {
+    final (from, to) = reportRange;
+    final backend = _backend;
+    if (backend == null) {
+      _reportEntries = [
+        for (final e in _demoReportEntries)
+          if (e.workedWithin(from, to, now) > Duration.zero) e,
+      ];
+      notifyListeners();
+      return;
+    }
+    try {
+      _reportEntries = await backend.reports.fetchEntries(from, to);
+    } on AppException catch (e) {
+      _reportEntries ??= [];
+      _flashError(e);
+    }
+    notifyListeners();
+  }
 
-  double get estimatedCost =>
-      employees.fold(0, (a, e) => a + e.hoursWorked * e.hourlyRate);
+  /// Una fila por persona del equipo (sin gerentes). Los invitados o
+  /// inactivos solo aparecen si tienen fichajes en el periodo.
+  List<ReportRow> get reportRows {
+    final (from, to) = reportRange;
+    final at = now;
+    final entries = _reportEntries ?? const [];
+    final rows = <ReportRow>[];
+    for (final emp in employees) {
+      if (emp.role == UserRole.manager) continue;
+      final mine = entries.where((e) => e.employeeId == emp.id).toList()
+        ..sort((a, b) => b.clockInAt.compareTo(a.clockInAt));
+      if (mine.isEmpty && emp.status != EmployeeStatus.active) continue;
+      final minutes = mine.fold<int>(
+        0,
+        (a, e) => a + e.workedWithin(from, to, at).inMinutes,
+      );
+      final hours = minutes / 60;
+      rows.add(
+        ReportRow(
+          employee: emp,
+          hours: hours,
+          cost: hours * emp.hourlyRate,
+          entries: mine,
+          overtime: hours > _reportPeriod.overtimeHours,
+        ),
+      );
+    }
+    rows.sort((a, b) => b.hours.compareTo(a.hours));
+    return rows;
+  }
 
-  String get estimatedCostLabel => Fmt.moneyCompact(estimatedCost);
+  ReportRow? reportRowFor(String employeeId) {
+    for (final r in reportRows) {
+      if (r.employee.id == employeeId) return r;
+    }
+    return null;
+  }
 
-  /// PENDIENTE: exportar requiere una Edge Function que genere el archivo
-  /// y lo envíe por correo (ver services/reports_service.dart).
-  void exportCsv() => flash(isDemo ? strings['exportOk'] : strings['comingSoon']);
+  double get reportTotalHours => reportRows.fold(0, (a, r) => a + r.hours);
 
-  void exportPdf() => flash(isDemo ? strings['exportOk'] : strings['comingSoon']);
+  /// Datos para generar el CSV o el PDF del periodo elegido.
+  ReportExportData get reportExportData => ReportExportData(
+    orgName: orgName,
+    from: reportRange.$1,
+    to: reportRange.$2,
+    periodLabel: reportPeriodLabel,
+    generatedAt: now,
+    rows: reportRows,
+    siteName: (id) => siteById(id)?.name ?? '—',
+    lang: lang,
+  );
+  double get reportTotalCost => reportRows.fold(0, (a, r) => a + r.cost);
+
+  String get totalHoursLabel => '${reportTotalHours.round()}h';
+  String get estimatedCostLabel => Fmt.moneyCompact(reportTotalCost);
+
+  /// "62h 30m"
+  static String hoursLabel(double hours) {
+    final totalMinutes = (hours * 60).round();
+    return '${totalMinutes ~/ 60}h ${(totalMinutes % 60).toString().padLeft(2, '0')}m';
+  }
+
+  /// Fichajes de ejemplo que suman las horas del demo en la quincena actual
+  /// (del 1 hasta ayer) y algo parecido en la anterior.
+  void _seedDemoReport() {
+    final entries = <ReportEntry>[];
+    var n = 0;
+    void spread(Employee e, double hours, List<DateTime> days) {
+      if (hours <= 0 || days.isEmpty) return;
+      final perDay = (hours * 60 / days.length).round();
+      for (final day in days) {
+        final start = DateTime(day.year, day.month, day.day, 7);
+        entries.add(
+          ReportEntry(
+            id: 'demo-entry-${n++}',
+            employeeId: e.id,
+            siteId: 's0',
+            clockInAt: start,
+            clockOutAt: start.add(Duration(minutes: perDay)),
+            // Un par de salidas fuera del sitio para que se vean en el detalle.
+            clockOutOutside: n % 9 == 4,
+            photoCount: n % 3,
+          ),
+        );
+      }
+    }
+
+    final (curFrom, _) = ReportPeriod.currentFortnight.range(today);
+    final (prevFrom, prevTo) = ReportPeriod.previousFortnight.range(today);
+    final current = [
+      for (var d = curFrom; d.isBefore(today); d = _addDays(d, 1)) d,
+    ];
+    final previous = [
+      for (var d = prevFrom; d.isBefore(prevTo); d = _addDays(d, 1))
+        if (d.weekday != DateTime.sunday) d,
+    ];
+    for (final e in employees) {
+      spread(e, e.hoursWorked, current);
+      spread(e, e.hoursWorked * 1.1, previous);
+    }
+    _demoReportEntries = entries;
+  }
 
   // ---------------------------------------------------------------------
   // Toast y errores
@@ -2062,6 +2192,8 @@ class AppState extends ChangeNotifier {
       emp('e3', 'Diego Sáenz', 'Barista', 'Barista', 6400, 71.25, EmployeeStatus.active, 3),
       emp('e4', 'Sofía Lara', 'Mesera', 'Server', 6500, 34, EmployeeStatus.inactive, 4),
     ];
+
+    _seedDemoReport();
 
     allSites = const [
       Site(

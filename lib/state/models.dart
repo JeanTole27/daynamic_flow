@@ -196,6 +196,93 @@ class TimeEntry {
   bool get isOpen => clockOutAt == null;
 }
 
+/// Fichaje visto desde los reportes del gerente.
+class ReportEntry {
+  const ReportEntry({
+    required this.id,
+    required this.employeeId,
+    required this.siteId,
+    required this.clockInAt,
+    this.clockOutAt,
+    this.clockOutOutside = false,
+    this.photoCount = 0,
+  });
+
+  final String id;
+  final String employeeId;
+  final String siteId;
+  final DateTime clockInAt;
+
+  /// null = sigue en turno.
+  final DateTime? clockOutAt;
+  final bool clockOutOutside;
+  final int photoCount;
+
+  bool get isOpen => clockOutAt == null;
+
+  /// Tiempo trabajado dentro de [from, to). Un fichaje abierto cuenta hasta
+  /// [now]. Misma regla que `period_hours` en el servidor.
+  Duration workedWithin(DateTime from, DateTime to, DateTime now) {
+    final out = clockOutAt ?? now;
+    final start = clockInAt.isAfter(from) ? clockInAt : from;
+    final end = out.isBefore(to) ? out : to;
+    return end.isAfter(start) ? end.difference(start) : Duration.zero;
+  }
+}
+
+/// Periodos que se pueden consultar en Reportes.
+enum ReportPeriod {
+  currentFortnight,
+  previousFortnight,
+  currentMonth,
+  previousMonth;
+
+  /// [desde, hasta) para el día [today].
+  (DateTime, DateTime) range(DateTime today) {
+    final y = today.year, m = today.month;
+    final firstHalf = today.day <= 15;
+    return switch (this) {
+      ReportPeriod.currentFortnight =>
+        firstHalf
+            ? (DateTime(y, m, 1), DateTime(y, m, 16))
+            : (DateTime(y, m, 16), DateTime(y, m + 1, 1)),
+      ReportPeriod.previousFortnight =>
+        firstHalf
+            ? (DateTime(y, m - 1, 16), DateTime(y, m, 1))
+            : (DateTime(y, m, 1), DateTime(y, m, 16)),
+      ReportPeriod.currentMonth => (DateTime(y, m, 1), DateTime(y, m + 1, 1)),
+      ReportPeriod.previousMonth => (DateTime(y, m - 1, 1), DateTime(y, m, 1)),
+    };
+  }
+
+  /// Umbral de horas extra: 65 h por quincena, el doble por mes.
+  double get overtimeHours => switch (this) {
+    ReportPeriod.currentFortnight || ReportPeriod.previousFortnight => 65,
+    ReportPeriod.currentMonth || ReportPeriod.previousMonth => 130,
+  };
+}
+
+/// Resumen de una persona en el periodo del reporte.
+class ReportRow {
+  const ReportRow({
+    required this.employee,
+    required this.hours,
+    required this.cost,
+    required this.entries,
+    required this.overtime,
+  });
+
+  final Employee employee;
+  final double hours;
+  final double cost;
+
+  /// Sus fichajes del periodo, del más reciente al más antiguo.
+  final List<ReportEntry> entries;
+  final bool overtime;
+
+  int get outsideCount => entries.where((e) => e.clockOutOutside).length;
+}
+
 /// Foto de evidencia del trabajo, ligada a un fichaje.
 class WorkPhoto {
   WorkPhoto({

@@ -165,7 +165,7 @@ table.rules { width: 100%; border-collapse: collapse; font-size: 14.5px; min-wid
     <h1>Así funciona la app, <em>paso a paso</em></h1>
     <p class="lede">El gerente registra su empresa, crea sus sitios y turnos, e invita al equipo. Cada empleado entra por esa invitación y ya queda dentro de la empresa correcta. Elige un rol y mira el recorrido con las pantallas reales.</p>
     <div class="roles" role="tablist" aria-label="Rol">
-      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">13 pasos</span></button>
+      <button type="button" role="tab" id="tab-gerente" data-role="gerente" aria-selected="true">Gerente <span class="n">14 pasos</span></button>
       <button type="button" role="tab" id="tab-empleado" data-role="empleado" aria-selected="false">Empleado <span class="n">9 pasos</span></button>
     </div>
   </header>
@@ -286,10 +286,14 @@ const STEPS = {
       do: "En Hoy ves cuántos trabajan ahora, los turnos sin cubrir y las solicitudes pendientes. Aprueba o rechaza con un toque.",
       path: ["Hoy", "Aprobar"],
       behind: ["<code>resolve_request()</code> valida la solicitud en el servidor y avisa al empleado."] },
-    { img: "m14_reports", x: 26, y: 66, title: "Revisa horas y costos",
-      do: "En Más → Reportes ves las horas de cada persona y el costo estimado según su tarifa. También Quién trabaja hoy muestra los fichajes en vivo.",
-      path: ["Más", "Reportes"],
-      behind: ["Las horas salen de los fichajes reales; el costo es horas × tarifa por hora."] },
+    { img: "m14_reports", x: 49, y: 18.3, title: "Revisa horas y costos",
+      do: "En Más → Reportes eliges el periodo (esta quincena, la anterior, este mes o el anterior) y ves las horas, los fichajes y el costo estimado de cada persona.",
+      path: ["Más", "Reportes", "Periodo"],
+      behind: ["Las horas salen de los fichajes reales, recortados al periodo; un fichaje en curso cuenta hasta ahora.", "El costo es horas × tarifa por hora. Se marcan las horas extra: más de 65 h por quincena o 130 h por mes."] },
+    { img: "m15_report_person", x: 50, y: 34, title: "Mira el detalle y exporta",
+      do: "Toca una persona para ver cada fichaje por día: sitio, hora de entrada y salida, horas, fotos y si salió fuera del sitio. Con CSV o PDF se genera el archivo y se abre el menú de compartir.",
+      path: ["Reportes", "Persona", "CSV / PDF"],
+      behind: ["El CSV trae un fichaje por fila y se abre en columnas en Excel (en español usa ; y coma decimal).", "El PDF trae un resumen por persona con el total y el detalle de todos los fichajes.", "Se envía por WhatsApp, correo o Drive desde el propio teléfono."] },
   ],
   empleado: [
     { img: "e01_invite", x: 50, y: 48.8, title: "Abre la invitación",

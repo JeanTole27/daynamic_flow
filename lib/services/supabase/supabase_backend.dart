@@ -856,4 +856,33 @@ class _SupabaseReports implements ReportsService {
             r['employee_id'] as String: (r['hours'] as num).toDouble(),
         };
       });
+
+  @override
+  Future<List<ReportEntry>> fetchEntries(DateTime from, DateTime to) =>
+      guard(() async {
+        final rows = await ctx.client
+            .from('time_entries')
+            .select(
+              'id, employee_id, site_id, clock_in_at, clock_out_at, '
+              'clock_out_outside, work_photos(count)',
+            )
+            .lt('clock_in_at', _iso(to))
+            .or('clock_out_at.is.null,clock_out_at.gt.${_iso(from)}')
+            .order('clock_in_at', ascending: false);
+        return [
+          for (final r in rows)
+            ReportEntry(
+              id: r['id'] as String,
+              employeeId: r['employee_id'] as String,
+              siteId: r['site_id'] as String,
+              clockInAt: _date(r['clock_in_at']),
+              clockOutAt: _dateOrNull(r['clock_out_at']),
+              clockOutOutside: r['clock_out_outside'] as bool? ?? false,
+              photoCount: switch (r['work_photos']) {
+                [{'count': final num n}, ...] => n.toInt(),
+                _ => 0,
+              },
+            ),
+        ];
+      });
 }
