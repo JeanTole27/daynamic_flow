@@ -6,6 +6,18 @@
       "runtimeExecutable": "flutter",
       "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8765"],
       "port": 8765
+    },
+    {
+      "name": "turnos-web-build",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8766", "--directory", "build/web"],
+      "port": 8766
+    },
+    {
+      "name": "onboarding",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8790", "--directory", "docs/onboarding"],
+      "port": 8790
     }
   ]
 }

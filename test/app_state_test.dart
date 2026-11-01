@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart' show DateUtils, Locale;
 
 import 'package:daynamic_flow/i18n/app_lang.dart';
 import 'package:daynamic_flow/state/app_state.dart';
@@ -25,7 +26,9 @@ void main() {
 
     test('formatElapsed pads to HH:MM:SS', () {
       expect(
-        AppState.formatElapsed(const Duration(hours: 4, minutes: 2, seconds: 9)),
+        AppState.formatElapsed(
+          const Duration(hours: 4, minutes: 2, seconds: 9),
+        ),
         '04:02:09',
       );
     });
@@ -38,27 +41,131 @@ void main() {
       app.approveRequest(target.id);
 
       expect(app.pendingRequests.length, before - 1);
-      expect(app.requests.firstWhere((r) => r.id == target.id).resolved, isTrue);
+      expect(
+        app.requests.firstWhere((r) => r.id == target.id).resolved,
+        isTrue,
+      );
     });
 
-    test('createShift adds a slot and decrements the open count', () {
+    test('createShift covers a matching open shift', () async {
       final app = AppState();
-      final day = app.week.firstWhere((d) => d.openCount > 0);
-      final before = day.slots.length;
+      final open = app.shifts.firstWhere(
+        (s) => s.employeeId == null && s.startsAt.isAfter(app.now),
+      );
+      final day = app.week.firstWhere(
+        (d) => d.slots.any((s) => s.shiftId == open.id),
+      );
       final openBefore = day.openCount;
-
-      app.createShift(
-        employeeId: app.employees.first.id,
-        weekdayIndex: day.weekdayIndex,
-        timeLabel: '09–17',
+      final employee = app.assignableEmployees.firstWhere(
+        (e) => !app.shifts.any(
+          (s) =>
+              s.employeeId == e.id &&
+              s.startsAt.isBefore(open.endsAt) &&
+              s.endsAt.isAfter(open.startsAt),
+        ),
       );
 
-      expect(day.slots.length, before + 1);
+      final ok = await app.createShift(
+        employeeId: employee.id,
+        startsAt: open.startsAt,
+        endsAt: open.endsAt,
+        siteId: open.siteId,
+      );
+
+      expect(ok, isTrue);
+      expect(open.employeeId, employee.id);
       expect(day.openCount, openBefore - 1);
     });
 
-    test('offerShift publishes a swap and a manager request', () {
+    test('createShift accepts any length between 15 min and 16 h', () async {
       final app = AppState();
+      final employee = app.assignableEmployees.first;
+      final day = DateUtils.dateOnly(app.now).add(const Duration(days: 20));
+      final start = DateTime(day.year, day.month, day.day, 10, 30);
+
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: start,
+          endsAt: start.add(const Duration(minutes: 90)),
+        ),
+        isTrue,
+      );
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: start.add(const Duration(hours: 3)),
+          endsAt: start.add(const Duration(hours: 3, minutes: 5)),
+        ),
+        isFalse,
+      );
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: start.add(const Duration(days: 1)),
+          endsAt: start.add(const Duration(days: 1, hours: 17)),
+        ),
+        isFalse,
+      );
+      // En el pasado no.
+      expect(
+        await app.createShift(
+          employeeId: employee.id,
+          startsAt: app.now.subtract(const Duration(hours: 2)),
+          endsAt: app.now.subtract(const Duration(hours: 1)),
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'updateShift changes hours and person; started shifts are locked',
+      () async {
+        final app = AppState();
+        final future = app.shifts.firstWhere(
+          (s) => s.employeeId != null && s.startsAt.isAfter(app.now),
+        );
+        final newStart = future.startsAt.add(const Duration(hours: 1));
+
+        final ok = await app.updateShift(
+          shiftId: future.id,
+          employeeId: null,
+          startsAt: newStart,
+          endsAt: newStart.add(const Duration(hours: 2)),
+          siteId: future.siteId,
+        );
+
+        expect(ok, isTrue);
+        final updated = app.shiftById(future.id)!;
+        expect(updated.employeeId, isNull);
+        expect(updated.duration, const Duration(hours: 2));
+
+        final started = Shift(
+          id: 'started',
+          siteId: future.siteId,
+          employeeId: app.assignableEmployees.first.id,
+          startsAt: app.now.subtract(const Duration(minutes: 30)),
+          endsAt: app.now.add(const Duration(hours: 1)),
+        );
+        app.shifts.add(started);
+        expect(app.canEditShift(started), isFalse);
+        expect(await app.cancelShift(started.id), isFalse);
+      },
+    );
+
+    test('cancelShift removes a future shift', () async {
+      final app = AppState();
+      final future = app.shifts.firstWhere((s) => s.startsAt.isAfter(app.now));
+      final count = app.shifts.length;
+
+      expect(await app.cancelShift(future.id), isTrue);
+      expect(app.shifts.length, count - 1);
+      expect(app.shiftById(future.id), isNull);
+    });
+
+    test('offerShift publishes a swap and a manager request', () {
+      // Ofrecer un turno es una acción del empleado (Ana tiene turno el jueves).
+      final app = AppState()..loginAs(UserRole.employee);
       final swapsBefore = app.swaps.length;
       final requestsBefore = app.requests.length;
 
@@ -70,7 +177,8 @@ void main() {
     });
 
     test('offerShift ignores a second offer for the same day', () {
-      final app = AppState();
+      // Ofrecer un turno es una acción del empleado (Ana tiene turno el jueves).
+      final app = AppState()..loginAs(UserRole.employee);
       final swapsBefore = app.swaps.length;
       final requestsBefore = app.requests.length;
 
@@ -89,7 +197,9 @@ void main() {
     });
 
     test('estimatedCostLabel has no stray backslash', () {
-      expect(AppState.estimatedCostLabel, r'$2.03M');
+      final label = AppState().estimatedCostLabel;
+      expect(label, startsWith(r'$'));
+      expect(label, isNot(contains(r'\')));
     });
 
     test('claimSwap moves an open swap to pending', () {
@@ -152,6 +262,25 @@ void main() {
       expect(app.strings['manager'], 'Manager');
     });
 
+    test('setLang updates the Flutter locale and reports the choice', () {
+      final saved = <AppLang>[];
+      final app = AppState(lang: AppLang.en, onLangChanged: saved.add);
+      expect(app.langListenable.value.locale.languageCode, 'en');
+
+      app.setLang(AppLang.es);
+      app.setLang(AppLang.es); // sin cambio: no se vuelve a guardar
+
+      expect(app.langListenable.value.locale.languageCode, 'es');
+      expect(saved, [AppLang.es]);
+    });
+
+    test('AppLang.resolve prefers the saved choice, then the phone', () {
+      expect(AppLang.resolve('en', const Locale('es')), AppLang.en);
+      expect(AppLang.resolve(null, const Locale('en', 'US')), AppLang.en);
+      expect(AppLang.resolve(null, const Locale('fr')), AppLang.es);
+      expect(AppLang.resolve('xx', const Locale('es', 'CO')), AppLang.es);
+    });
+
     test('deactivateEmployee updates that employee only', () {
       final app = AppState();
       final target = app.employees[1];
@@ -161,6 +290,202 @@ void main() {
 
       expect(target.status, EmployeeStatus.inactive);
       expect(app.employees[2].status, untouched);
+    });
+
+    test('saveSite creates a site and rejects bad input', () async {
+      final app = AppState();
+      final before = app.sites.length;
+
+      final ok = await app.saveSite(
+        name: '  Bodega Norte ',
+        address: '',
+        latitude: 4.7,
+        longitude: -74.05,
+        radiusMeters: 150,
+      );
+
+      expect(ok, isTrue);
+      expect(app.sites.length, before + 1);
+      final created = app.sites.firstWhere((s) => s.name == 'Bodega Norte');
+      expect(created.address, isNull);
+      expect(created.radiusMeters, 150);
+
+      expect(
+        await app.saveSite(
+          name: 'Sin coordenadas',
+          address: '',
+          latitude: null,
+          longitude: -74,
+          radiusMeters: 100,
+        ),
+        isFalse,
+      );
+      expect(
+        await app.saveSite(
+          name: 'Radio chico',
+          address: '',
+          latitude: 4.7,
+          longitude: -74,
+          radiusMeters: 5,
+        ),
+        isFalse,
+      );
+      expect(app.sites.length, before + 1);
+    });
+
+    test('setSiteActive hides the site from scheduling but keeps it', () async {
+      final app = AppState();
+      final site = app.sites.first;
+
+      await app.setSiteActive(site.id, false);
+
+      expect(app.sites.any((s) => s.id == site.id), isFalse);
+      expect(app.siteById(site.id)?.active, isFalse);
+
+      await app.setSiteActive(site.id, true);
+      expect(app.sites.any((s) => s.id == site.id), isTrue);
+    });
+    test('employee requests a day off: valid, duplicate and past', () async {
+      final app = AppState()..loginAs(UserRole.employee);
+      final before = app.myPendingRequests.length;
+      final day = app.today.add(const Duration(days: 4));
+
+      expect(await app.requestDayOff(day, '  Cita médica '), isTrue);
+      expect(app.myPendingRequests.length, before + 1);
+      final created = app.myPendingRequests.first;
+      expect(created.kind, RequestKind.off);
+      expect(created.reason, 'Cita médica');
+
+      expect(await app.requestDayOff(day, ''), isFalse);
+      expect(
+        await app.requestDayOff(app.today.subtract(const Duration(days: 1)), ''),
+        isFalse,
+      );
+      expect(app.myPendingRequests.length, before + 1);
+    });
+
+    test('employee warns they will be late once per shift', () async {
+      final app = AppState()..loginAs(UserRole.employee);
+      final shift = app.lateNoticeShift;
+      expect(shift, isNotNull);
+
+      expect(await app.notifyLate('Unos 10 min'), isTrue);
+      final notice = app.myPendingRequests.first;
+      expect(notice.kind, RequestKind.late);
+      expect(notice.shiftId, shift!.id);
+      // El gerente lo ve como aviso, no como entrada tarde.
+      app.loginAs(UserRole.manager);
+      expect(app.requestTitle(notice), contains('avisa que llegará tarde'));
+
+      app.loginAs(UserRole.employee);
+      expect(await app.notifyLate('otra vez'), isFalse);
+    });
+
+    test('setNewPassword checks length and confirmation', () async {
+      final app = AppState();
+      expect(await app.setNewPassword('corta', 'corta'), isFalse);
+      expect(await app.setNewPassword('larga1234', 'distinta1'), isFalse);
+      expect(await app.setNewPassword('larga1234', 'larga1234'), isTrue);
+      expect(app.needsNewPassword, isFalse);
+    });
+    test('updateEmployee changes position and rate, not own role', () async {
+      final app = AppState();
+      final emp = app.assignableEmployees.first;
+
+      expect(
+        await app.updateEmployee(
+          employeeId: emp.id,
+          fullName: emp.name,
+          position: 'Supervisora',
+          hourlyRate: 9000,
+          role: UserRole.employee,
+        ),
+        isTrue,
+      );
+      final updated = app.employeeById(emp.id);
+      expect(updated.roleFor(false), 'Supervisora');
+      expect(updated.hourlyRate, 9000);
+
+      expect(
+        await app.updateEmployee(
+          employeeId: emp.id,
+          fullName: emp.name,
+          position: 'X',
+          hourlyRate: -5,
+          role: UserRole.employee,
+        ),
+        isFalse,
+      );
+      expect(
+        await app.updateEmployee(
+          employeeId: app.me.id,
+          fullName: app.me.name,
+          position: '',
+          hourlyRate: 0,
+          role: UserRole.employee,
+        ),
+        isFalse,
+      );
+    });
+
+    test('fixTimeEntry closes an entry and requires a reason', () async {
+      final app = AppState();
+      final entry = app.fixableEntries.first;
+      final start = entry.clockInAt;
+
+      expect(
+        await app.fixTimeEntry(
+          entryId: entry.id,
+          clockIn: start,
+          clockOut: start.add(const Duration(hours: 1)),
+          note: '  ',
+        ),
+        isFalse,
+      );
+      expect(
+        await app.fixTimeEntry(
+          entryId: entry.id,
+          clockIn: start,
+          clockOut: start.subtract(const Duration(hours: 1)),
+          note: 'x',
+        ),
+        isFalse,
+      );
+      final out = start.add(const Duration(minutes: 30));
+      expect(
+        await app.fixTimeEntry(
+          entryId: entry.id,
+          clockIn: start,
+          clockOut: out,
+          note: 'Olvidó marcar salida',
+        ),
+        isTrue,
+      );
+      final fixed = app.todayEntries.firstWhere((e) => e.id == entry.id);
+      expect(fixed.clockOutAt, out);
+    });
+
+    test('cancelInvite removes an invited person', () async {
+      final app = AppState();
+      await app.inviteEmployee(
+        name: 'Nueva Persona',
+        email: 'nueva@ejemplo.co',
+        position: 'Mesera',
+        hourlyRate: 6000,
+      );
+      final invited = app.employees.firstWhere(
+        (e) => e.status == EmployeeStatus.invited,
+      );
+
+      expect(await app.cancelInvite(invited.id), isTrue);
+      expect(app.employees.any((e) => e.id == invited.id), isFalse);
+    });
+
+    test('the only manager is flagged before deleting the account', () {
+      final app = AppState();
+      expect(app.isSoleManager, isTrue);
+      app.loginAs(UserRole.employee);
+      expect(app.isSoleManager, isFalse);
     });
   });
 }

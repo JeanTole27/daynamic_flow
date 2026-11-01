@@ -23,8 +23,8 @@ class PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: disabled ? AppColors.cardAlt : AppColors.lime,
-          foregroundColor: disabled ? AppColors.mutedDim : AppColors.ink,
+          backgroundColor: disabled ? AppColors.cardAlt : AppColors.primary,
+          foregroundColor: disabled ? AppColors.mutedDim : AppColors.onPrimary,
           disabledBackgroundColor: AppColors.cardAlt,
           disabledForegroundColor: AppColors.mutedDim,
           elevation: 0,
@@ -38,6 +38,8 @@ class PrimaryButton extends StatelessWidget {
           style: AppTextStyles.sans(
             size: dense ? 13.5 : 16,
             weight: FontWeight.w700,
+            // sans() trae color claro por defecto y taparía el foregroundColor.
+            color: disabled ? AppColors.mutedDim : AppColors.onPrimary,
           ),
         ),
       ),
@@ -131,19 +133,26 @@ class BackPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(11),
-        side: const BorderSide(color: AppColors.border),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(11),
-        onTap: onPressed ?? () => Navigator.of(context).maybePop(),
-        child: const SizedBox(
-          width: 38,
-          height: 38,
-          child: Icon(Icons.chevron_left, color: AppColors.muted, size: 22),
+    // Un ListView estira a sus hijos a todo el ancho; el Align mantiene el
+    // botón de 38×38 y pegado a la izquierda en cualquier contenedor.
+    return Align(
+      alignment: Alignment.centerLeft,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: Material(
+        color: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(11),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(11),
+          onTap: onPressed ?? () => Navigator.of(context).maybePop(),
+          child: const SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(Icons.chevron_left, color: AppColors.muted, size: 22),
+          ),
         ),
       ),
     );

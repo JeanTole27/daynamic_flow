@@ -8,7 +8,9 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/chip_button.dart';
 import '../../widgets/section_label.dart';
 import '../login_screen.dart';
+import '../new_password_screen.dart';
 import '../notifications/notifications_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -18,21 +20,34 @@ class ProfileScreen extends StatelessWidget {
     final app = AppScope.of(context);
     final t = app.strings;
     final isManager = app.role == UserRole.manager;
-    final initials = isManager ? 'CV' : 'AT';
-    final name = isManager ? 'Carlos Vega' : 'Ana Torres';
+    final me = app.me;
+    final initials = me.initials;
+    final name = me.name;
     final roleLine = isManager
-        ? '${t['manager']} · El Roble'
-        : '${t['waitress']} · El Roble';
+        ? '${t['manager']} · ${app.orgName}'
+        : '${me.roleFor(app.isEnglish)} · ${app.orgName}';
 
     final items = <(String label, VoidCallback onTap)>[
-      (t['changePass'], () => app.flash(app.isEnglish ? 'Coming soon' : 'Próximamente')),
+      (
+        t['changePass'],
+        () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const NewPasswordScreen(fromProfile: true),
+          ),
+        ),
+      ),
       (
         t['notifications'],
         () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const NotificationsScreen()),
         ),
       ),
-      (t['settings'], () => app.flash(app.isEnglish ? 'Coming soon' : 'Próximamente')),
+      (
+        t['settings'],
+        () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        ),
+      ),
     ];
 
     return Scaffold(
@@ -48,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
                   height: 64,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.lime,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(21),
                   ),
                   child: Text(
@@ -56,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
                     style: AppTextStyles.mono(
                       size: 20,
                       weight: FontWeight.w700,
-                      color: AppColors.ink,
+                      color: AppColors.onPrimary,
                     ),
                   ),
                 ),
@@ -147,11 +162,12 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            if (app.isDemo)
             Material(
-              color: AppColors.lime.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.lime.withValues(alpha: 0.35)),
+                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35)),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -164,16 +180,17 @@ class ProfileScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 14.5,
                       weight: FontWeight.w600,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 ),
               ),
             ),
             TextButton(
-              onPressed: () {
-                app.logout();
-                Navigator.of(context).pushAndRemoveUntil(
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                await app.logout();
+                navigator.pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (route) => false,
                 );

@@ -7,6 +7,8 @@ import '../../theme/app_text_styles.dart';
 import '../chat/chat_list_screen.dart';
 import '../home/employee_home_screen.dart';
 import '../home/manager_home_screen.dart';
+import '../login_screen.dart';
+import '../new_password_screen.dart';
 import '../more/more_screen.dart';
 import '../profile/profile_screen.dart';
 import '../schedule/my_time_screen.dart';
@@ -47,6 +49,21 @@ class AppShellState extends State<AppShell> {
     final t = app.strings;
     final isManager = app.role == UserRole.manager;
 
+    // La sesión venció o fue revocada en el servidor: volver al login.
+    if (!app.isSignedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      });
+      return const Scaffold();
+    }
+
+    // Se abrió un enlace de recuperación con la sesión ya iniciada.
+    if (app.needsNewPassword) return const NewPasswordScreen();
+
     // Switching role changes the whole tab set — start back at the first
     // tab instead of keeping a numeric index that now points somewhere
     // unrelated.
@@ -73,9 +90,25 @@ class AppShellState extends State<AppShell> {
     final index = _index < tabs.length ? _index : 0;
 
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: [for (final tab in tabs) tab.screen],
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: index,
+            children: [for (final tab in tabs) tab.screen],
+          ),
+          // Primera carga de datos en curso: la app ya se puede usar.
+          if (app.loadingData)
+            Positioned(
+              top: MediaQuery.of(context).padding.top,
+              left: 0,
+              right: 0,
+              child: const LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+                color: AppColors.primary,
+              ),
+            ),
+        ],
       ),
       bottomNavigationBar: _BottomBar(
         labels: [for (final tab in tabs) tab.label],
@@ -101,7 +134,7 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: AppColors.ink,
+        color: AppColors.background,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
@@ -123,7 +156,7 @@ class _BottomBar extends StatelessWidget {
                           width: 26,
                           decoration: BoxDecoration(
                             color: i == index
-                                ? AppColors.lime
+                                ? AppColors.primary
                                 : Colors.transparent,
                             borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(3),
@@ -140,7 +173,7 @@ class _BottomBar extends StatelessWidget {
                               weight: FontWeight.w700,
                               letterSpacing: 1,
                               color: i == index
-                                  ? AppColors.lime
+                                  ? AppColors.primaryText
                                   : AppColors.mutedDim,
                             ),
                           ),

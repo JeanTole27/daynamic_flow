@@ -16,9 +16,9 @@ class NotificationsScreen extends StatelessWidget {
     final t = app.strings;
 
     final prefLabels = [
-      app.isEnglish ? 'Shift reminder (30 min)' : 'Recordatorio de turno (30 min)',
-      app.isEnglish ? 'New messages' : 'Mensajes nuevos',
-      app.isEnglish ? 'Forgot to clock out' : 'Olvidé marcar salida',
+      t['prefShiftReminder'],
+      t['prefNewMessages'],
+      t['prefForgotOut'],
     ];
 
     return Scaffold(
@@ -49,7 +49,7 @@ class NotificationsScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 12.5,
                       weight: FontWeight.w600,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 ),
@@ -59,7 +59,7 @@ class NotificationsScreen extends StatelessWidget {
             for (final n in app.notifs) ...[
               _NotifCard(
                 title: n.textFor(app.isEnglish),
-                time: n.timeLabel,
+                time: app.notifTimeLabel(n),
                 read: n.read,
                 onTap: () => app.markNotifRead(n.id),
               ),
@@ -135,7 +135,7 @@ class _NotifCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(
-          color: read ? AppColors.border : AppColors.lime.withValues(alpha: 0.28),
+          color: read ? AppColors.border : AppColors.primary.withValues(alpha: 0.28),
         ),
       ),
       child: InkWell(
@@ -152,7 +152,7 @@ class _NotifCard extends StatelessWidget {
                   width: 9,
                   height: 9,
                   decoration: BoxDecoration(
-                    color: read ? const Color(0xFF3A3F36) : AppColors.lime,
+                    color: read ? AppColors.inactive : AppColors.primary,
                     shape: BoxShape.circle,
                   ),
                 ),

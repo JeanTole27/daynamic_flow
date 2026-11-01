@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../state/app_scope.dart';
-import '../../state/app_state.dart';
 import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -36,9 +35,9 @@ class ManagerHomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SectionLabel(t['restaurantName']),
+                      SectionLabel(app.orgName),
                       const SizedBox(height: 6),
-                      Text(t['helloCarlos'], style: AppTextStyles.h1()),
+                      Text(app.greeting, style: AppTextStyles.h1()),
                     ],
                   ),
                 ),
@@ -58,12 +57,12 @@ class ManagerHomeScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _StatCard(
-                    background: AppColors.lime,
-                    valueColor: AppColors.ink,
+                    background: AppColors.primary,
+                    valueColor: AppColors.onPrimary,
                     value: '${app.workingNowCount}',
-                    valueSuffix: '/${AppState.teamSize}',
+                    valueSuffix: '/${app.teamSize}',
                     label: t['workingNow'],
-                    labelColor: AppColors.ink.withValues(alpha: 0.72),
+                    labelColor: AppColors.onPrimary.withValues(alpha: 0.72),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const LiveScreen()),
                     ),
@@ -92,7 +91,7 @@ class ManagerHomeScreen extends StatelessWidget {
                   '${pending.length}',
                   style: AppTextStyles.mono(
                     size: 10.5,
-                    color: AppColors.lime,
+                    color: AppColors.primaryText,
                   ),
                 ),
               ],
@@ -113,7 +112,7 @@ class ManagerHomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      t['allClear'],
+                      app.loadingData ? t['loadingData'] : t['allClear'],
                       style: AppTextStyles.sans(
                         size: 15,
                         weight: FontWeight.w600,
@@ -121,7 +120,7 @@ class ManagerHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      t['allClearSub'],
+                      app.loadingData ? t['loadingDataSub'] : t['allClearSub'],
                       style: AppTextStyles.sans(
                         size: 12.5,
                         color: AppColors.muted,

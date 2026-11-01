@@ -1,12 +1,12 @@
-/// CONEXIÓN PENDIENTE — no implementada a propósito.
-///
-/// Reemplaza `AppState.exportCsv`/`exportPdf`. Necesita calcular horas y
-/// costo desde los fichajes reales del servidor (no desde `Employee.hoursWorked`
-/// mock) y generar/enviar el archivo — probablemente un endpoint que arma
-/// el CSV/PDF server-side y lo manda por correo, en vez de generarlo en el
-/// cliente.
-abstract class ReportsService {
-  Future<void> exportCsv({required DateTime from, required DateTime to});
+import '../state/models.dart';
 
-  Future<void> exportPdf({required DateTime from, required DateTime to});
+/// Datos de los reportes, calculados a partir de los fichajes reales.
+/// La exportación (CSV/PDF) se arma en el teléfono con estos datos.
+abstract class ReportsService {
+  /// employeeId -> horas en el periodo.
+  Future<Map<String, double>> fetchHours(DateTime from, DateTime to);
+
+  /// Fichajes que se cruzan con [from, to), con su número de fotos. El
+  /// gerente ve los de toda su organización.
+  Future<List<ReportEntry>> fetchEntries(DateTime from, DateTime to);
 }

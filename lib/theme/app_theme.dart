@@ -3,16 +3,16 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 
 abstract final class AppTheme {
-  static ThemeData get dark {
+  static ThemeData get light {
     final base = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.ink,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.lime,
-        onPrimary: AppColors.ink,
-        secondary: AppColors.lime,
-        surface: AppColors.card,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.background,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.primary,
+        onPrimary: AppColors.onPrimary,
+        secondary: AppColors.primary,
+        surface: AppColors.background,
         onSurface: AppColors.text,
         error: AppColors.red,
       ),
@@ -27,7 +27,7 @@ abstract final class AppTheme {
         displayColor: AppColors.text,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.ink,
+        backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
@@ -45,9 +45,9 @@ abstract final class AppTheme {
         space: 1,
       ),
       textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: AppColors.lime,
-        selectionColor: Color(0x55C6F04B),
-        selectionHandleColor: AppColors.lime,
+        cursorColor: AppColors.primary,
+        selectionColor: Color(0x4002AD4D),
+        selectionHandleColor: AppColors.primary,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -67,8 +67,16 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.lime),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.toastBg,

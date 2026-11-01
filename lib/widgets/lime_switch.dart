@@ -19,7 +19,7 @@ class LimeSwitch extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: value ? AppColors.lime : const Color(0xFF2A2F27),
+          color: value ? AppColors.primary : AppColors.inactive,
           borderRadius: BorderRadius.circular(999),
         ),
         child: AnimatedAlign(
@@ -30,7 +30,7 @@ class LimeSwitch extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: const BoxDecoration(
-              color: AppColors.ink,
+              color: AppColors.onPrimary,
               shape: BoxShape.circle,
             ),
           ),

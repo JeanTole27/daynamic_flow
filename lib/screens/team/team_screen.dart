@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/avatar.dart';
+import 'invite_member_sheet.dart';
 import 'member_detail_screen.dart';
 
 class TeamScreen extends StatefulWidget {
@@ -43,13 +44,13 @@ class _TeamScreenState extends State<TeamScreen> {
                 children: [
                   Expanded(child: Text(t['team'], style: AppTextStyles.h1())),
                   Material(
-                    color: AppColors.lime,
+                    color: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(13),
-                      onTap: app.inviteEmployee,
+                      onTap: () => showInviteMemberSheet(context),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 15,
@@ -60,7 +61,7 @@ class _TeamScreenState extends State<TeamScreen> {
                           style: AppTextStyles.sans(
                             size: 13,
                             weight: FontWeight.w700,
-                            color: AppColors.ink,
+                            color: AppColors.onPrimary,
                           ),
                         ),
                       ),
@@ -103,7 +104,7 @@ class _EmployeeRow extends StatelessWidget {
     final t = app.strings;
 
     final (label, color) = switch (employee.status) {
-      EmployeeStatus.active => (t['active'], AppColors.lime),
+      EmployeeStatus.active => (t['active'], AppColors.primary),
       EmployeeStatus.invited => (t['invited'], AppColors.amber),
       EmployeeStatus.inactive => (t['inactive'], AppColors.muted),
     };
@@ -134,7 +135,10 @@ class _EmployeeRow extends StatelessWidget {
                   style: AppTextStyles.sans(size: 15, weight: FontWeight.w600),
                 ),
                 Text(
-                  '${employee.roleFor(app.isEnglish)} · ${employee.hoursLabel}',
+                  [
+                    employee.roleFor(app.isEnglish),
+                    employee.hoursLabel,
+                  ].where((s) => s.isNotEmpty).join(' · '),
                   style: AppTextStyles.sans(size: 12, color: AppColors.muted),
                 ),
               ],

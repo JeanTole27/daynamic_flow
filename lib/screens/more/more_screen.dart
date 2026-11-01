@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../i18n/app_lang.dart';
 import '../../state/app_scope.dart';
+import '../../state/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/chip_button.dart';
@@ -10,6 +11,7 @@ import '../live/live_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
 import '../reports/reports_screen.dart';
+import '../sites/sites_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -20,6 +22,8 @@ class MoreScreen extends StatelessWidget {
     final t = app.strings;
 
     final items = <(String label, WidgetBuilder builder)>[
+      if (app.role == UserRole.manager)
+        (t['sites'], (_) => const SitesScreen()),
       (t['reports'], (_) => const ReportsScreen()),
       (t['whoWorks'], (_) => const LiveScreen()),
       (t['notifications'], (_) => const NotificationsScreen()),
@@ -79,11 +83,14 @@ class MoreScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            // Cambiar de rol solo existe en el demo: con backend el rol lo
+            // decide la base de datos.
+            if (app.isDemo)
             Material(
-              color: AppColors.lime.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.lime.withValues(alpha: 0.35)),
+                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.35)),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -96,7 +103,7 @@ class MoreScreen extends StatelessWidget {
                     style: AppTextStyles.sans(
                       size: 14.5,
                       weight: FontWeight.w600,
-                      color: AppColors.lime,
+                      color: AppColors.primaryText,
                     ),
                   ),
                 ),
@@ -133,7 +140,7 @@ class _MoreRow extends StatelessWidget {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: AppColors.lime,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
